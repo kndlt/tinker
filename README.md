@@ -1,4 +1,4 @@
-# [Top Secret] Tinker Project
+# Tinker Project
 
 Tinker is an autonomous AI agent that builds and maintains AI agents. Currently serving as a virtual engineer at Sprited, Tinker's main job is to build and maintain Pixel (the company's main public-facing AI).
 
