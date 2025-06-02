@@ -2,7 +2,7 @@
 name = "tinker"
 version = "0.1.0"
 description = ""
-authors = ["Jin"]
+authors = ["Sprited Dev <dev@sprited.app>"]
 readme = "README.md"
 packages = [{ include = "tinker", from = "src" }]
 
