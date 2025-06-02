@@ -4,6 +4,8 @@ import random
 import shutil
 import signal
 import atexit
+import subprocess
+import json
 from datetime import datetime
 from pathlib import Path
 from openai import OpenAI
@@ -148,7 +150,7 @@ def scan_for_tasks(tinker_folder):
     task_files = list(tasks_folder.glob("*.md"))
     return task_files
 
-def process_task(task_file, tinker_folder):
+def process_task(task_file, tinker_folder, client=None):
     """Process a single task file through the workflow."""
     task_name = task_file.name
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -175,8 +177,108 @@ def process_task(task_file, tinker_folder):
         if len(task_content.strip().split('\n')) > 5:
             print("   ...")
         
-        # Simulate some work
-        update_state(tinker_folder, f"⚙️  Working on task: {task_name}")
+        # Phase 3: Analyze task with AI to determine if shell commands are needed
+        update_state(tinker_folder, f"🤖 Analyzing task with AI: {task_name}")
+        
+        ai_analysis = analyze_task_with_ai(task_content, client)
+        
+        task_result = {"completed": False, "commands_executed": [], "errors": []}
+        
+        if ai_analysis and ai_analysis.get("needs_shell", False):
+            print(f"\n🤖 AI Analysis: This task requires shell commands")
+            print(f"💭 Reasoning: {ai_analysis.get('reasoning', 'No reasoning provided')}")
+            
+            suggested_commands = ai_analysis.get("suggested_commands", [])
+            context = ai_analysis.get("context", "Task execution")
+            
+            if suggested_commands:
+                print(f"\n📋 Suggested commands ({len(suggested_commands)} total):")
+                for i, cmd in enumerate(suggested_commands, 1):
+                    print(f"   {i}. {cmd}")
+                
+                update_state(tinker_folder, f"🛠️  Task requires {len(suggested_commands)} shell commands")
+                
+                # Execute each command with user approval
+                for i, command in enumerate(suggested_commands, 1):
+                    print(f"\n--- Command {i}/{len(suggested_commands)} ---")
+                    
+                    approved, final_command = get_user_approval_for_command(
+                        command, 
+                        f"Step {i} of task '{task_name}': {context}"
+                    )
+                    
+                    if approved:
+                        update_state(tinker_folder, f"⚡ Executing: {final_command}")
+                        result = execute_shell_command(final_command)
+                        
+                        task_result["commands_executed"].append({
+                            "command": final_command,
+                            "success": result["success"],
+                            "output": result["stdout"][:500],  # Limit output length
+                            "error": result["stderr"][:500] if result["stderr"] else None
+                        })
+                        
+                        if result["success"]:
+                            print(f"✅ Command succeeded")
+                            if result["stdout"]:
+                                print(f"📤 Output preview: {result['stdout'][:200]}...")
+                        else:
+                            print(f"❌ Command failed: {result['stderr']}")
+                            task_result["errors"].append(result["stderr"])
+                            
+                            # Ask user if they want to continue or abort
+                            continue_choice = input("Command failed. Continue with remaining commands? [y/N]: ").strip().lower()
+                            if continue_choice not in ['y', 'yes']:
+                                print("🛑 Task execution aborted by user")
+                                break
+                    else:
+                        print(f"⏭️  Skipping command {i}")
+                        task_result["errors"].append(f"Command {i} rejected by user")
+                
+                task_result["completed"] = len(task_result["errors"]) == 0
+            else:
+                print("🤖 AI suggests shell commands are needed but provided no specific commands")
+                task_result["completed"] = True
+        else:
+            print(f"🤖 AI Analysis: This task doesn't require shell commands")
+            if ai_analysis:
+                print(f"💭 Reasoning: {ai_analysis.get('reasoning', 'No reasoning provided')}")
+            task_result["completed"] = True
+        
+        # Create a detailed completion report
+        completion_report = f"""# Task Completion Report
+
+**Task:** {task_name}
+**Timestamp:** {timestamp}
+**Status:** {'✅ Completed' if task_result['completed'] else '⚠️ Completed with errors'}
+
+## Original Task Content
+{task_content}
+
+## Execution Summary
+- Commands executed: {len(task_result['commands_executed'])}
+- Errors encountered: {len(task_result['errors'])}
+
+"""
+        
+        if task_result["commands_executed"]:
+            completion_report += "## Commands Executed\n"
+            for i, cmd_result in enumerate(task_result["commands_executed"], 1):
+                status = "✅" if cmd_result["success"] else "❌"
+                completion_report += f"{i}. {status} `{cmd_result['command']}`\n"
+                if cmd_result["output"]:
+                    completion_report += f"   Output: {cmd_result['output'][:200]}...\n"
+                if cmd_result["error"]:
+                    completion_report += f"   Error: {cmd_result['error'][:200]}...\n"
+                completion_report += "\n"
+        
+        if task_result["errors"]:
+            completion_report += "## Errors\n"
+            for error in task_result["errors"]:
+                completion_report += f"- {error}\n"
+        
+        # Write the completion report to the ongoing file
+        ongoing_file.write_text(completion_report)
         
         # Move to done folder with timestamp
         done_folder = tinker_folder / "done"
@@ -185,17 +287,127 @@ def process_task(task_file, tinker_folder):
         shutil.move(str(ongoing_file), str(done_file))
         
         # Update state
-        update_state(tinker_folder, f"✅ Completed task: {task_name} → {done_filename}")
+        status_emoji = "✅" if task_result["completed"] else "⚠️"
+        update_state(tinker_folder, f"{status_emoji} Completed task: {task_name} → {done_filename}")
         
-        print(f"✅ Task completed: {task_name}")
+        print(f"\n{status_emoji} Task completed: {task_name}")
         print(f"📁 Moved to: done/{done_filename}")
         
-        return True
+        return task_result["completed"]
         
     except Exception as e:
         update_state(tinker_folder, f"❌ Error processing {task_name}: {str(e)}")
         print(f"❌ Error processing {task_name}: {e}")
         return False
+
+def execute_shell_command(command, timeout=30):
+    """Execute a shell command and return the result."""
+    try:
+        print(f"🔧 Executing: {command}")
+        result = subprocess.run(
+            command,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=timeout
+        )
+        
+        return {
+            'success': result.returncode == 0,
+            'stdout': result.stdout,
+            'stderr': result.stderr,
+            'returncode': result.returncode
+        }
+    except subprocess.TimeoutExpired:
+        return {
+            'success': False,
+            'stdout': '',
+            'stderr': f'Command timed out after {timeout} seconds',
+            'returncode': -1
+        }
+    except Exception as e:
+        return {
+            'success': False,
+            'stdout': '',
+            'stderr': str(e),
+            'returncode': -1
+        }
+
+def get_user_approval_for_command(command, context=""):
+    """Ask user for approval before executing a shell command."""
+    print(f"\n🤖 Tinker wants to execute a shell command:")
+    print(f"📋 Context: {context}")
+    print(f"💻 Command: {command}")
+    print("\n⚠️  This command will be executed on your system.")
+    
+    while True:
+        response = input("Do you approve this command? [y/N/e(dit)]: ").strip().lower()
+        
+        if response in ['y', 'yes']:
+            return True, command
+        elif response in ['n', 'no', '']:
+            print("❌ Command rejected by user")
+            return False, command
+        elif response in ['e', 'edit']:
+            new_command = input(f"Enter modified command (original: {command}): ").strip()
+            if new_command:
+                return True, new_command
+            else:
+                print("❌ Empty command, rejecting")
+                return False, command
+        else:
+            print("Please enter 'y' for yes, 'n' for no, or 'e' to edit the command")
+
+def analyze_task_with_ai(task_content, client=None):
+    """Use OpenAI to analyze a task and suggest shell commands if needed."""
+    if not client:
+        return None
+    
+    try:
+        prompt = f"""You are Tinker, an autonomous AI agent that helps with development tasks.
+
+Analyze this task and determine if it requires shell commands to complete:
+
+Task content:
+{task_content}
+
+Respond with a JSON object containing:
+- "needs_shell": boolean (true if shell commands are needed)
+- "suggested_commands": array of strings (shell commands to execute, in order)
+- "reasoning": string (explanation of why these commands are needed)
+- "context": string (brief description of what each command does)
+
+Only suggest commands that are safe and necessary for the task. Be conservative.
+
+Examples of tasks that need shell commands:
+- Creating files/directories
+- Installing packages
+- Running tests
+- Building projects
+- Git operations
+
+Examples of tasks that don't need shell commands:
+- Planning or documentation tasks
+- Analysis or research tasks
+- Simple text processing that can be done in Python
+"""
+
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a helpful AI assistant that analyzes tasks and suggests shell commands when needed. Always respond with valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=1000,
+            temperature=0.3
+        )
+        
+        result = json.loads(response.choices[0].message.content)
+        return result
+        
+    except Exception as e:
+        print(f"⚠️  AI analysis failed: {e}")
+        return None
 
 def main():
     """Main Tinker CLI that runs forever."""
@@ -213,20 +425,30 @@ def main():
         print("Exiting due to existing Tinker process.")
         return
     
-    # Initialize OpenAI client (though we're not using it for gibberish yet)
+    # Initialize OpenAI client
+    client = None
     try:
-        client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-        print("✅ OpenAI client initialized")
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            print("⚠️  OPENAI_API_KEY not found in environment")
+            print("   Phase 3 shell command analysis will be disabled")
+            print("   Add your OpenAI API key to .env file for full functionality")
+        else:
+            client = OpenAI(api_key=api_key)
+            print("✅ OpenAI client initialized - Phase 3 shell capabilities enabled")
     except Exception as e:
         print(f"⚠️  OpenAI client initialization failed: {e}")
-        print("Continuing with gibberish generation...")
+        print("Continuing without AI analysis...")
     
-    print("\n🚀 Tinker is now running...")
-    print("Scanning for tasks every 5 seconds...")
+    print("\n🚀 Tinker is now running with Phase 3 capabilities...")
+    print("- 🤖 AI-powered task analysis")
+    print("- 💻 Shell command execution with user approval")
+    print("- 📋 Detailed task completion reports")
+    print("\nScanning for tasks every 5 seconds...")
     print("Press Ctrl+C to stop\n")
     
     # Initial state update
-    update_state(tinker_folder, "🚀 Tinker started - scanning for tasks")
+    update_state(tinker_folder, "🚀 Tinker Phase 3 started - AI shell capabilities enabled")
     
     try:
         while True:
@@ -240,10 +462,12 @@ def main():
                 
                 # Process each task
                 for task_file in tasks:
-                    success = process_task(task_file, tinker_folder)
+                    success = process_task(task_file, tinker_folder, client)
                     if success:
-                        print("   ⏳ Simulating work...")
-                        time.sleep(2)  # Simulate some processing time
+                        print("   ⏳ Task processing completed...")
+                    else:
+                        print("   ⚠️  Task completed with issues...")
+                    time.sleep(2)  # Brief pause between tasks
                     
             else:
                 # No tasks found, generate some activity
