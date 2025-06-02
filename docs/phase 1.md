@@ -1,4 +1,4 @@
-# Tinker MVP
+# Tinker - Phase 1
 
 Tinker is an autonomous AI agent that is serving as a virtual engineer at Sprited (an AGI company that builds Pixel--company's main public facing AI). 
 
@@ -7,7 +7,9 @@ Tinker is an autonomous AI agent that is serving as a virtual engineer at Sprite
 
 ## Minimum Viable Product
 
+- [ ] Tinker will be able to use the chat API (OpenAI).
+- [ ] It will be a CLI tool that runs forever.
+- [ ] It will create `.tinker` folder at root level when it runs.
+- [ ] For now, it will produce gibberish every 5 seconds.
 
-1. You can clone the repo using `git clone git@github.com:kndlt/tinker.git`
-2. Then, tinker will 
 
