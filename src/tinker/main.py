@@ -80,10 +80,11 @@ def process_task(task_file, tinker_folder):
         print(f"📋 Processing task: {task_name}")
         print(f"📄 Task content preview:")
         # Show first few lines of the task
-        lines = task_content.split('\n')[:5]
+        lines = task_content.strip().split('\n')[:5]
         for line in lines:
-            print(f"   {line}")
-        if len(task_content.split('\n')) > 5:
+            if line.strip():  # Only show non-empty lines
+                print(f"   {line}")
+        if len(task_content.strip().split('\n')) > 5:
             print("   ...")
         
         # Simulate some work
@@ -128,20 +129,40 @@ def main():
         print("Continuing with gibberish generation...")
     
     print("\n🚀 Tinker is now running...")
-    print("Generating activity every 5 seconds...")
+    print("Scanning for tasks every 5 seconds...")
     print("Press Ctrl+C to stop\n")
+    
+    # Initial state update
+    update_state(tinker_folder, "🚀 Tinker started - scanning for tasks")
     
     try:
         while True:
-            # Generate and display gibberish
-            gibberish = generate_gibberish()
-            timestamp = time.strftime("%H:%M:%S")
-            print(f"[{timestamp}] Tinker: {gibberish}")
+            # Scan for new tasks
+            tasks = scan_for_tasks(tinker_folder)
             
-            # Wait 5 seconds
+            if tasks:
+                print(f"📋 Found {len(tasks)} task(s) to process:")
+                for task_file in tasks:
+                    print(f"   • {task_file.name}")
+                
+                # Process each task
+                for task_file in tasks:
+                    success = process_task(task_file, tinker_folder)
+                    if success:
+                        print("   ⏳ Simulating work...")
+                        time.sleep(2)  # Simulate some processing time
+                    
+            else:
+                # No tasks found, generate some activity
+                timestamp = time.strftime("%H:%M:%S")
+                print(f"[{timestamp}] 🔍 Scanning for tasks... (none found)")
+                update_state(tinker_folder, "🔍 Scanned for tasks - none found")
+            
+            # Wait 5 seconds before next scan
             time.sleep(5)
             
     except KeyboardInterrupt:
+        update_state(tinker_folder, "🛑 Tinker stopped by user")
         print("\n\n🛑 Tinker stopped by user")
         print("Goodbye!")
 
