@@ -8,6 +8,11 @@ packages = [{ include = "tinker", from = "src" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"
+openai = "^1.0.0"
+python-dotenv = "^1.1.0"
+
+[tool.poetry.scripts]
+tinker = "tinker.main:main"
 
 [tool.poetry.dev-dependencies]
 pytest = "^8.2.0"
