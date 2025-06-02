@@ -9,9 +9,24 @@
 
 ## System Architecture
 
+### Hardware Specifications
+**Primary Development System:**
+- **GPU:** NVIDIA RTX Pro 6000 (48GB VRAM, Ada Lovelace architecture)
+- **CPU:** AMD Ryzen 9 9800X3D (8 cores, 16 threads, 3D V-Cache)
+- **RAM:** 96GB DDR5 (high-bandwidth memory for large model inference)
+- **Storage:** NVMe SSD (minimum 2TB for projects, models, and snapshots)
+- **Network:** Gigabit Ethernet (for GitHub operations and model downloads)
+
+**CUDA Compatibility:**
+- **Compute Capability:** 8.9 (RTX Pro 6000)
+- **CUDA Cores:** 10,752
+- **RT Cores:** 84 (3rd generation)
+- **Tensor Cores:** 336 (4th generation)
+- **Memory Bandwidth:** 960 GB/s
+
 ### Core Container Specification
 - **Base Image:** nvidia/cuda:12.8-devel-ubuntu22.04
-- **CUDA Support:** SM 12.0+ compatible
+- **CUDA Support:** SM 8.9 compatible (RTX Pro 6000)
 - **Runtime:** Python 3.11 with GPU acceleration
 - **AI Backend:** DeepSeek R1 integration
 - **Isolation:** Docker containerization only
@@ -347,11 +362,48 @@ while True:
 - Port exposure for web interfaces
 - Environment variable configuration
 
-**Resource Requirements:**
-- CUDA-compatible GPU (SM 12.0+)
-- Minimum 16GB RAM
-- 100GB+ storage for projects
-- High-speed internet connection
+**System Requirements:**
+- **GPU:** NVIDIA RTX Pro 6000 (48GB VRAM minimum)
+- **CPU:** AMD Ryzen 9 9800X3D or equivalent (8+ cores recommended)
+- **RAM:** 96GB DDR5 (64GB minimum for model inference)
+- **Storage:** 2TB+ NVMe SSD (for projects, models, snapshots)
+- **Network:** Gigabit Ethernet (stable internet required)
+- **OS:** Linux/macOS with Docker and NVIDIA Container Toolkit
+
+**Docker Compose Configuration:**
+```yaml
+version: '3.8'
+services:
+  tinker:
+    build: .
+    container_name: tinker-agent
+    ports:
+      - "8080:8080"  # Web interface
+      - "8081:8081"  # Webhook endpoint
+    volumes:
+      - tinker_data:/tinker/data
+      - tinker_projects:/tinker/projects
+      - tinker_snapshots:/tinker/snapshots
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+      - CUDA_VISIBLE_DEVICES=0
+    runtime: nvidia
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  tinker_data:
+  tinker_projects:
+  tinker_snapshots:
+```
 
 ### Startup Sequence
 1. **System Initialization:** Container setup and dependency verification
