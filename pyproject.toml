@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "tinker"
+version = "0.1.0"
+description = ""
+authors = ["Jin"]
+readme = "README.md"
+packages = [{ include = "tinker", from = "src" }]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+[tool.poetry.dev-dependencies]
+pytest = "^8.2.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
