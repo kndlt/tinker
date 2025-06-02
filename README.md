@@ -36,8 +36,14 @@ curl -sSL https://install.python-poetry.org | python3 -
 
 ### 2. Install Docker
 
-- Download and install Docker Desktop from https://www.docker.com/products/docker-desktop/ (macOS/Windows) or follow Linux instructions: https://docs.docker.com/engine/install/
-- Start Docker and ensure it is running.
+- On macOS, you can use Homebrew:
+  ```sh
+  brew install --cask docker
+  open /Applications/Docker.app
+  # Wait for Docker to finish starting (check the menu bar whale icon)
+  ```
+- Or download Docker Desktop from https://www.docker.com/products/docker-desktop/ (macOS/Windows)
+- For Linux, follow: https://docs.docker.com/engine/install/
 - Verify installation:
   ```sh
   docker --version
