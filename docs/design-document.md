@@ -283,6 +283,29 @@ while True:
 - Complete shell access within container environment
 - Unrestricted internet access (inbound/outbound)
 
+### System Access Capabilities
+
+**Shell Access:**
+- Full bash/zsh shell access within container environment
+- System command execution (apt, pip, npm, git, etc.)
+- File system operations and permissions management
+- Process management and system monitoring
+- Package installation and system configuration
+
+**Internet Browsing Context:**
+- Web scraping and content analysis capabilities
+- API integration and external service access
+- Real-time information gathering and research
+- Documentation and resource lookup
+- External tool and library discovery
+
+**Administrative Privileges:**
+- Root access within container for system modifications
+- Network configuration and port management
+- Service installation and daemon management
+- System-level debugging and profiling tools
+- Container resource allocation and optimization
+
 ### Risk Mitigation
 - Container-only execution (never run outside Docker)
 - Regular backups of agent state and projects
