@@ -34,7 +34,16 @@ Tinker is an autonomous AI agent that builds and maintains AI agents. Currently 
 curl -sSL https://install.python-poetry.org | python3 -
 ```
 
-### 2. Clone the repo and install
+### 2. Install Docker
+
+- Download and install Docker Desktop from https://www.docker.com/products/docker-desktop/ (macOS/Windows) or follow Linux instructions: https://docs.docker.com/engine/install/
+- Start Docker and ensure it is running.
+- Verify installation:
+  ```sh
+  docker --version
+  ```
+
+### 3. Clone the repo and install
 
 ```bash
 git clone https://github.com/kndlt/tinker.git
@@ -42,7 +51,7 @@ cd tinker
 poetry install
 ```
 
-### 3. Set up OpenAI API Key
+### 4. Set up OpenAI API Key
 
 Create a `.env` file in the project root:
 
@@ -56,7 +65,7 @@ Or set it as an environment variable:
 export OPENAI_API_KEY="your-api-key-here"
 ```
 
-### 4. Run Tinker
+### 5. Run Tinker
 
 ```bash
 poetry run tinker
@@ -163,3 +172,35 @@ Then start Tinker to process them:
 ```bash
 poetry run tinker
 ```
+
+## Docker Setup for Tinker (Phase 4)
+
+Tinker now uses Docker to safely execute all shell commands in an isolated environment. Follow these steps to set up Docker for Tinker:
+
+1. **Install Docker**
+   - Download and install Docker Desktop from [https://www.docker.com/products/docker-desktop/](https://www.docker.com/products/docker-desktop/) (macOS/Windows) or follow [Linux install instructions](https://docs.docker.com/engine/install/).
+   - Start Docker and ensure it is running.
+
+2. **Verify Docker Installation**
+   - Open a terminal and run:
+     ```sh
+     docker --version
+     ```
+   - You should see the Docker version output. If not, check your installation.
+
+3. **No Manual Container Setup Needed**
+   - Tinker will automatically create and manage a persistent Docker container named `tinker_sandbox` on startup.
+   - The `.tinker` folder in your project will be mounted inside the container for persistent workspace data.
+
+4. **Troubleshooting**
+   - If you encounter issues, ensure Docker is running and accessible from your terminal.
+   - To manually stop or remove the container:
+     ```sh
+     docker stop tinker_sandbox
+     docker rm tinker_sandbox
+     ```
+
+5. **Security Note**
+   - All shell commands are executed inside the Docker container, not on your host system, for improved safety.
+
+For more details, see `docs/docker.md`.
