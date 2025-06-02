@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from openai import OpenAI
 from dotenv import load_dotenv
+from . import docker_manager
 
 def is_process_running(pid):
     """Check if a process with given PID is running."""
@@ -301,29 +302,16 @@ def process_task(task_file, tinker_folder, client=None):
         return False
 
 def execute_shell_command(command, timeout=30):
-    """Execute a shell command and return the result."""
+    """Execute a shell command inside the Docker container and return the result."""
     try:
-        print(f"🔧 Executing: {command}")
-        result = subprocess.run(
-            command,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=timeout
-        )
-        
+        print(f"🔧 Executing (in Docker): {command}")
+        # Always run in bash for shell features (redirects, etc)
+        result = docker_manager.exec_in_container(["bash", "-c", command])
         return {
             'success': result.returncode == 0,
             'stdout': result.stdout,
             'stderr': result.stderr,
             'returncode': result.returncode
-        }
-    except subprocess.TimeoutExpired:
-        return {
-            'success': False,
-            'stdout': '',
-            'stderr': f'Command timed out after {timeout} seconds',
-            'returncode': -1
         }
     except Exception as e:
         return {
@@ -410,6 +398,15 @@ Examples of tasks that don't need shell commands:
         return None
 
 def main():
+    # Start or reuse the persistent Docker container
+    try:
+        docker_manager.start_container()
+        print("[Tinker] Docker sandbox is ready.")
+    except Exception as e:
+        print(f"[Tinker] Failed to start Docker sandbox: {e}")
+        print("[Tinker] Exiting for safety.")
+        return
+    
     """Main Tinker CLI that runs forever."""
     # Load environment variables from .env file
     load_dotenv()
