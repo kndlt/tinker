@@ -5,6 +5,7 @@
 **Purpose:** Autonomous AI agent to build Pixel (main AI agent for Sprited)  
 **Security Model:** Zero-security (containerized isolation only)  
 **Architecture:** Fully autonomous with self-modification capabilities  
+**AI Model:** DeepSeek R1 for core intelligence and reasoning
 
 ## System Architecture
 
@@ -12,6 +13,7 @@
 - **Base Image:** nvidia/cuda:12.8-devel-ubuntu22.04
 - **CUDA Support:** SM 12.0+ compatible
 - **Runtime:** Python 3.11 with GPU acceleration
+- **AI Backend:** DeepSeek R1 integration
 - **Isolation:** Docker containerization only
 
 ### Directory Structure
@@ -19,6 +21,8 @@
 /tinker/
 ├── core/
 │   ├── agent.py           # Main Tinker agent logic
+│   ├── deepseek_client.py # DeepSeek R1 integration
+│   ├── mission_parser.py  # GitHub issue and chat parsing
 │   ├── self_modify.py     # Self-modification capabilities
 │   ├── github_manager.py  # GitHub operations
 │   └── web_inspector.py   # Website rendering & screenshots
@@ -27,13 +31,15 @@
 │   │   └── command_handler.py
 │   └── web/
 │       ├── app.py         # Flask/FastAPI web interface
+│       ├── chat.py        # Chat interface
 │       ├── templates/
 │       └── static/
 ├── projects/
 │   └── pixel/             # Pixel development workspace
 ├── logs/
 ├── config/
-│   └── settings.json
+│   ├── settings.json
+│   └── mission.json       # Current mission state
 ├── docs/
 │   └── design_document.md
 └── requirements.txt
@@ -43,10 +49,21 @@
 
 ### 1. Main Agent (core/agent.py)
 **Primary Responsibilities:**
-- Continuous autonomous operation with task management
-- Goal-oriented planning and execution
-- Persistent context and learning capabilities
-- Code generation, testing, and deployment
+- Continuous autonomous operation loop with configurable time gaps
+- Mission state management and execution
+- Coordination between all subsystems
+- Health monitoring and self-recovery
+
+**Continuous Loop Architecture:**
+```python
+while True:
+    # Check for new GitHub issues/webhooks
+    # Process chat messages
+    # Execute current mission steps
+    # Self-monitor and adjust
+    # Sleep for configured interval (default: 30 seconds)
+    time.sleep(config.loop_interval)
+```
 
 **Key Features:**
 - Event-driven architecture
@@ -54,7 +71,44 @@
 - Memory persistence across restarts
 - Adaptive learning from outcomes
 
-### 2. Self-Modification System (core/self_modify.py)
+### 2. DeepSeek R1 Integration (core/deepseek_client.py)
+**Intelligence Layer:**
+- Core reasoning and planning engine
+- Code generation and analysis
+- Natural language understanding for missions
+- Decision-making for autonomous actions
+
+**Capabilities:**
+- Mission decomposition into actionable tasks
+- Code review and self-modification decisions
+- Problem-solving and debugging
+- Learning from outcomes and feedback
+
+### 3. Mission Communication System (core/mission_parser.py)
+**GitHub Issues Integration:**
+- Webhook listener for issue updates
+- Issue parsing and mission extraction
+- Status updates back to GitHub issues
+- Priority and dependency management
+
+**Chat Interface:**
+- Real-time web/CLI chat communication
+- Command parsing and execution
+- Human oversight and intervention
+- Progress reporting and questions
+
+### 4. Self-Modification System (core/self_modify.py)
+**Safety-First Architecture:**
+- Docker snapshot creation before modifications
+- Backup and rollback capabilities
+- Validation testing before implementation
+- Manual intervention hooks for recovery
+
+**Recovery Mechanisms:**
+- Automatic rollback on critical failures
+- Container restart from clean state
+- Human override capabilities
+- State persistence for mission continuity
 **Capabilities:**
 - Read and understand its own source code
 - Modify components while maintaining core functionality
@@ -67,19 +121,19 @@
 - Rollback capability to previous versions
 - Health checks after modifications
 
-### 3. GitHub Integration (core/github_manager.py)
+### 5. GitHub Integration (core/github_manager.py)
 **GitHub Operations:**
 - Repository management (clone, create, manage)
 - Code operations (commit, push, pull, branch management)
-- Issue tracking and management
-- Pull request handling and code reviews
+- Issue tracking and webhook handling
+- Automated commits and documentation
 
 **Authentication:**
 - Personal Access Token (PAT) based authentication
 - Dedicated GitHub account for Tinker operations
 - Secure token storage within container environment
 
-### 4. Web Inspector (core/web_inspector.py)
+### 6. Web Inspector (core/web_inspector.py)
 **Browser Capabilities:**
 - Headless Chromium integration with Xvfb
 - Screenshot capture for visual analysis
@@ -91,6 +145,85 @@
 - Element identification and interaction
 - Form filling and submission
 - Content extraction and summarization
+
+## Mission Communication Architecture
+
+### GitHub Issues Workflow
+```
+1. Human creates/updates GitHub issue with mission details
+2. GitHub webhook triggers Tinker notification
+3. Tinker parses issue content using DeepSeek R1
+4. Mission is decomposed into actionable tasks
+5. Tinker updates issue with plan and progress
+6. Continuous execution with status updates
+```
+
+### Chat Interface Features
+- **Real-time communication:** Web and CLI chat interfaces
+- **Command execution:** Direct task assignment and queries
+- **Progress monitoring:** Live updates and status reports
+- **Human intervention:** Override and guidance capabilities
+
+## Autonomous Operation Model
+
+### Continuous Loop Design
+**MVP Implementation:**
+- **Loop Interval:** 30-60 seconds (configurable)
+- **Health Checks:** System status and resource monitoring
+- **Mission Processing:** Task execution and progress tracking
+- **Communication:** Check for new issues, webhooks, and chat messages
+
+### Mission Decomposition Process
+```
+1. Receive mission via GitHub issue or chat
+2. DeepSeek R1 analyzes and breaks down into steps
+3. Create execution plan with priorities and dependencies
+4. Execute tasks autonomously with progress reporting
+5. Handle errors and request human help when needed
+```
+
+## Safety and Recovery Framework
+
+### Docker Snapshot Strategy
+**Before Critical Operations:**
+- Create container snapshots before self-modifications
+- Tag snapshots with timestamp and operation type
+- Maintain rolling history of stable states
+- Quick restore capability for failed modifications
+
+### Manual Recovery Process
+**Human Intervention Points:**
+1. **Container Access:** SSH/exec into running container
+2. **Code Fixes:** Direct file system access for repairs
+3. **Rollback:** Restore from previous snapshot
+4. **Clean Restart:** Rebuild from base image if needed
+
+### Failure Detection
+- **Health Checks:** Automated system validation
+- **Heartbeat Monitoring:** Regular status pings
+- **Error Thresholds:** Automatic recovery triggers
+- **Human Alerts:** Critical failure notifications
+
+## Testing and Validation Strategy
+
+### Initial Testing Approach
+**Phase 1 - Controlled Environment:**
+- Isolated test repositories for experimentation
+- Limited scope missions to validate basic functionality
+- Manual oversight of all autonomous actions
+- Comprehensive logging of decisions and actions
+
+**Phase 2 - Gradual Autonomy:**
+- Increase complexity of assigned missions
+- Reduce human intervention gradually
+- Monitor self-modification attempts closely
+- Validate learning and adaptation capabilities
+
+### Validation Metrics
+- **Mission Completion Rate:** Successful task execution
+- **Self-Recovery Success:** Ability to handle failures
+- **Code Quality:** Generated code meets standards
+- **Communication Clarity:** Clear progress reporting
 
 ## Interface Design
 
@@ -233,67 +366,34 @@
 - Agent responsiveness verification
 - Mission progress validation
 
-## Success Metrics
+## Updated Success Metrics
 
-### Primary Objectives
-- [ ] Successfully build functional Pixel AI agent
-- [ ] Demonstrate reliable self-modification capabilities
-- [ ] Maintain 99%+ operational uptime
-- [ ] Achieve autonomous GitHub repository management
+### MVP Objectives
+- [ ] Maintain stable continuous operation loop
+- [ ] Successfully parse and understand GitHub issue missions
+- [ ] Demonstrate basic autonomous task execution
+- [ ] Implement reliable snapshot and recovery system
+- [ ] Establish functional chat communication interface
 
-### Performance Indicators
-**Operational Metrics:**
-- Task completion rate and accuracy
-- System uptime and reliability
-- Resource utilization efficiency
-- Error rate and recovery time
+### Extended Objectives
+- [ ] Complete full "build Pixel" mission autonomously
+- [ ] Demonstrate self-modification without system corruption
+- [ ] Achieve 95%+ mission completion rate
+- [ ] Maintain system stability across multiple restart cycles
 
-**Development Metrics:**
-- Code quality and test coverage
-- Documentation completeness
-- Feature implementation velocity
-- Bug detection and resolution rate
+## Updated Risk Assessment
 
-### Quality Assurance
-**Automated Testing:**
-- Unit tests for all components
-- Integration testing for interfaces
-- Performance benchmarking
-- Security validation (within container)
+### Technical Risks and Solutions
+- **Self-Modification Failures:** Snapshot system + manual recovery
+- **Mission Misinterpretation:** Human validation via chat interface
+- **Resource Exhaustion:** Container limits + monitoring
+- **Network Issues:** Offline operation mode + retry mechanisms
 
-**Manual Validation:**
-- Human oversight and feedback
-- Mission objective assessment
-- System behavior analysis
-- User interface evaluation
-
-## Future Enhancements
-
-### Planned Features
-- Advanced machine learning capabilities
-- Multi-agent collaboration protocols
-- Enhanced natural language processing
-- Improved visual recognition and analysis
-
-### Scalability Considerations
-- Distributed computing support
-- Cloud deployment options
-- Load balancing and failover
-- Multi-container orchestration
-
-## Risk Assessment
-
-### Technical Risks
-- Self-modification causing system instability
-- Resource exhaustion from autonomous operations
-- Network connectivity issues affecting GitHub access
-- GPU driver compatibility problems
-
-### Mitigation Strategies
-- Comprehensive backup and recovery procedures
-- Resource monitoring and automatic limiting
-- Offline operation capabilities
-- Fallback to CPU-only operation if needed
+### Operational Safeguards
+- **Human Override:** Always available via multiple channels
+- **Mission Abort:** Emergency stop capabilities
+- **State Preservation:** Critical data persistence across failures
+- **Gradual Rollout:** Incremental complexity increases
 
 ## Conclusion
 
@@ -303,7 +403,8 @@ The modular architecture allows for incremental development and testing, while t
 
 ---
 
-**Document Version:** 1.0  
+**Document Version:** 1.1  
 **Last Updated:** June 2, 2025  
+**Updates:** Added DeepSeek R1 integration, GitHub issues workflow, continuous loop design, and snapshot recovery strategy  
 **Author:** Agent-Zero (GitHub Copilot)  
 **Project:** Tinker AI Agent Development
