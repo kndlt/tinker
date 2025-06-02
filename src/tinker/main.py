@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from openai import OpenAI
 from dotenv import load_dotenv
+from . import docker_manager
 
 def is_process_running(pid):
     """Check if a process with given PID is running."""
@@ -410,6 +411,15 @@ Examples of tasks that don't need shell commands:
         return None
 
 def main():
+    # Start or reuse the persistent Docker container
+    try:
+        docker_manager.start_container()
+        print("[Tinker] Docker sandbox is ready.")
+    except Exception as e:
+        print(f"[Tinker] Failed to start Docker sandbox: {e}")
+        print("[Tinker] Exiting for safety.")
+        return
+    
     """Main Tinker CLI that runs forever."""
     # Load environment variables from .env file
     load_dotenv()
