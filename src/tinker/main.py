@@ -29,16 +29,48 @@ def acquire_lock(tinker_folder):
             
             # Check if the process is still running
             if is_process_running(existing_pid):
-                print(f"❌ Another Tinker process is already running (PID: {existing_pid})")
-                print("   Please stop the existing process before starting a new one.")
-                return False
+                print(f"⚠️  Another Tinker process is already running (PID: {existing_pid})")
+                print("   Do you want to stop the existing process and start a new one?")
+                
+                while True:
+                    response = input("   [y/N]: ").strip().lower()
+                    if response in ['y', 'yes']:
+                        print(f"🛑 Stopping existing Tinker process (PID: {existing_pid})")
+                        try:
+                            os.kill(existing_pid, signal.SIGTERM)
+                            time.sleep(1)  # Give it a moment to stop gracefully
+                            
+                            # Check if it's still running
+                            if is_process_running(existing_pid):
+                                print(f"🔨 Force killing process (PID: {existing_pid})")
+                                os.kill(existing_pid, signal.SIGKILL)
+                                time.sleep(0.5)
+                            
+                            print(f"✅ Successfully stopped existing process")
+                            # Remove the old lock file if it still exists
+                            if lock_file.exists():
+                                lock_file.unlink()
+                            break
+                        except (OSError, ProcessLookupError):
+                            print(f"🧹 Process {existing_pid} was already stopped")
+                            # Remove the stale lock file if it still exists
+                            if lock_file.exists():
+                                lock_file.unlink()
+                            break
+                    elif response in ['n', 'no', '']:
+                        print("❌ Exiting - existing Tinker process will continue running")
+                        return False
+                    else:
+                        print("   Please enter 'y' for yes or 'n' for no")
             else:
                 print(f"🧹 Cleaning up stale lock file (PID {existing_pid} no longer running)")
-                lock_file.unlink()
+                if lock_file.exists():
+                    lock_file.unlink()
         except (ValueError, FileNotFoundError):
             # Invalid or corrupted lock file
             print("🧹 Cleaning up corrupted lock file")
-            lock_file.unlink()
+            if lock_file.exists():
+                lock_file.unlink()
     
     # Create new lock file with current PID
     lock_file.write_text(str(current_pid))
