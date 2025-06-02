@@ -2,10 +2,66 @@ import os
 import time
 import random
 import shutil
+import signal
+import atexit
 from datetime import datetime
 from pathlib import Path
 from openai import OpenAI
 from dotenv import load_dotenv
+
+def is_process_running(pid):
+    """Check if a process with given PID is running."""
+    try:
+        os.kill(pid, 0)
+        return True
+    except (OSError, ProcessLookupError):
+        return False
+
+def acquire_lock(tinker_folder):
+    """Acquire a lock file to prevent multiple instances."""
+    lock_file = tinker_folder / "tinker.lock"
+    current_pid = os.getpid()
+    
+    if lock_file.exists():
+        try:
+            # Read existing PID
+            existing_pid = int(lock_file.read_text().strip())
+            
+            # Check if the process is still running
+            if is_process_running(existing_pid):
+                print(f"❌ Another Tinker process is already running (PID: {existing_pid})")
+                print("   Please stop the existing process before starting a new one.")
+                return False
+            else:
+                print(f"🧹 Cleaning up stale lock file (PID {existing_pid} no longer running)")
+                lock_file.unlink()
+        except (ValueError, FileNotFoundError):
+            # Invalid or corrupted lock file
+            print("🧹 Cleaning up corrupted lock file")
+            lock_file.unlink()
+    
+    # Create new lock file with current PID
+    lock_file.write_text(str(current_pid))
+    print(f"🔒 Acquired lock (PID: {current_pid})")
+    
+    # Register cleanup function
+    def cleanup_lock():
+        if lock_file.exists():
+            lock_file.unlink()
+            print("🔓 Released lock file")
+    
+    atexit.register(cleanup_lock)
+    
+    # Handle interruption signals
+    def signal_handler(signum, frame):
+        cleanup_lock()
+        print(f"\n🛑 Tinker stopped by signal {signum}")
+        exit(0)
+    
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
+    return True
 
 def create_tinker_folder():
     """Create .tinker folder structure in current directory if it doesn't exist."""
@@ -119,6 +175,11 @@ def main():
     
     # Create .tinker folder
     tinker_folder = create_tinker_folder()
+    
+    # Acquire process lock
+    if not acquire_lock(tinker_folder):
+        print("Exiting due to existing Tinker process.")
+        return
     
     # Initialize OpenAI client (though we're not using it for gibberish yet)
     try:
