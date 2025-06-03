@@ -1,6 +1,6 @@
 # Tinker - Phase 2.3
 
-In Phase 2.1, we made sure shell commands like grep, echo, curl, ping all works fine.
+In Phase 2.2, we made sure shell commands like grep, echo, curl, ping all works fine.
 
 Now, I want to give it ability to send emails.
 
