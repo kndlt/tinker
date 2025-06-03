@@ -274,10 +274,8 @@ def process_task(task_file, tinker_folder, client=None):
                         
                         if result["success"]:
                             print(f"✅ Command succeeded")
-                            if result["stdout"]:
-                                print(f"📤 Output preview: {result['stdout'][:200]}...")
                         else:
-                            print(f"❌ Command failed: {result['stderr']}")
+                            print(f"❌ Command failed (exit code: {result.get('returncode', 'unknown')})")
                             task_result["errors"].append(result["stderr"])
                             
                             # Ask user if they want to continue or abort
@@ -373,6 +371,20 @@ def execute_shell_command(command, timeout=30):
         print(f"🔧 Executing (in Docker): {command}")
         # Always run in bash for shell features (redirects, etc)
         result = docker_manager.exec_in_container(["bash", "-c", command])
+        
+        # Display output in greyed-out format
+        if result.stdout:
+            print("\033[90m" + "─" * 50 + " OUTPUT " + "─" * 50 + "\033[0m")
+            for line in result.stdout.splitlines():
+                print(f"\033[90m{line}\033[0m")
+            print("\033[90m" + "─" * 107 + "\033[0m")
+        
+        if result.stderr:
+            print("\033[90m" + "─" * 50 + " STDERR " + "─" * 50 + "\033[0m")
+            for line in result.stderr.splitlines():
+                print(f"\033[90m{line}\033[0m")
+            print("\033[90m" + "─" * 107 + "\033[0m")
+        
         return {
             'success': result.returncode == 0,
             'stdout': result.stdout,
