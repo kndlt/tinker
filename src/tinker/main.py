@@ -11,6 +11,7 @@ from pathlib import Path
 from openai import OpenAI
 from dotenv import load_dotenv
 from . import docker_manager
+from .email_manager import send_email_from_task
 
 def is_process_running(pid):
     """Check if a process with given PID is running."""
@@ -183,9 +184,58 @@ def process_task(task_file, tinker_folder, client=None):
         
         ai_analysis = analyze_task_with_ai(task_content, client)
         
-        task_result = {"completed": False, "commands_executed": [], "errors": []}
+        task_result = {"completed": False, "commands_executed": [], "errors": [], "emails_sent": []}
         
-        if ai_analysis and ai_analysis.get("needs_shell", False):
+        # Check if this is an email task
+        if ai_analysis and ai_analysis.get("is_email", False):
+            print(f"\n📧 AI Analysis: This is an email task")
+            print(f"💭 Reasoning: {ai_analysis.get('reasoning', 'No reasoning provided')}")
+            
+            update_state(tinker_folder, f"📧 Processing email task: {task_name}")
+            
+            # Ask user for approval before sending email
+            print(f"\n📧 Tinker wants to send an email:")
+            print(f"📋 Task: {task_name}")
+            print(f"📄 Email content preview:")
+            
+            # Show email content preview
+            lines = task_content.strip().split('\n')
+            for line in lines[:10]:  # Show more lines for email preview
+                if line.strip():
+                    print(f"   {line}")
+            if len(lines) > 10:
+                print("   ...")
+            
+            print(f"\n⚠️  This will send a real email.")
+            
+            while True:
+                response = input("Do you approve sending this email? [y/N]: ").strip().lower()
+                
+                if response in ['y', 'yes']:
+                    print("📧 Sending email...")
+                    email_result = send_email_from_task(task_content)
+                    
+                    task_result["emails_sent"].append(email_result)
+                    
+                    if email_result["success"]:
+                        print(f"✅ Email sent successfully to {email_result.get('to', 'recipient')}")
+                        update_state(tinker_folder, f"📧 ✅ Email sent to {email_result.get('to', 'recipient')}")
+                        task_result["completed"] = True
+                    else:
+                        print(f"❌ Email failed: {email_result.get('error', 'Unknown error')}")
+                        update_state(tinker_folder, f"📧 ❌ Email failed: {email_result.get('error', 'Unknown error')}")
+                        task_result["errors"].append(email_result.get('error', 'Email sending failed'))
+                        task_result["completed"] = False
+                    break
+                elif response in ['n', 'no', '']:
+                    print("❌ Email sending rejected by user")
+                    task_result["errors"].append("Email sending rejected by user")
+                    task_result["completed"] = False
+                    break
+                else:
+                    print("Please enter 'y' for yes or 'n' for no")
+        
+        elif ai_analysis and ai_analysis.get("needs_shell", False):
             print(f"\n🤖 AI Analysis: This task requires shell commands")
             print(f"💭 Reasoning: {ai_analysis.get('reasoning', 'No reasoning provided')}")
             
@@ -258,9 +308,22 @@ def process_task(task_file, tinker_folder, client=None):
 
 ## Execution Summary
 - Commands executed: {len(task_result['commands_executed'])}
+- Emails sent: {len(task_result['emails_sent'])}
 - Errors encountered: {len(task_result['errors'])}
 
 """
+        
+        if task_result["emails_sent"]:
+            completion_report += "## Emails Sent\n"
+            for i, email_result in enumerate(task_result["emails_sent"], 1):
+                status = "✅" if email_result["success"] else "❌"
+                to_email = email_result.get("to", "unknown")
+                subject = email_result.get("subject", "unknown")
+                completion_report += f"{i}. {status} Email to: {to_email}\n"
+                completion_report += f"   Subject: {subject}\n"
+                if email_result.get("error"):
+                    completion_report += f"   Error: {email_result['error']}\n"
+                completion_report += "\n"
         
         if task_result["commands_executed"]:
             completion_report += "## Commands Executed\n"
@@ -354,27 +417,36 @@ def analyze_task_with_ai(task_content, client=None):
     try:
         prompt = f"""You are Tinker, an autonomous AI agent that helps with development tasks.
 
-Analyze this task and determine if it requires shell commands to complete:
+Analyze this task and determine what type of task it is:
 
 Task content:
 {task_content}
 
 Respond with a JSON object containing:
+- "task_type": string ("shell", "email", or "other")
 - "needs_shell": boolean (true if shell commands are needed)
-- "suggested_commands": array of strings (shell commands to execute, in order)
-- "reasoning": string (explanation of why these commands are needed)
-- "context": string (brief description of what each command does)
+- "is_email": boolean (true if this is an email task)
+- "suggested_commands": array of strings (shell commands to execute, in order) - only if needs_shell is true
+- "reasoning": string (explanation of why these commands are needed or what type of task this is)
+- "context": string (brief description of what needs to be done)
 
-Only suggest commands that are safe and necessary for the task. Be conservative.
+Task type detection:
+- "email": Tasks that start with "Send email to" or are clearly about sending emails
+- "shell": Tasks that require shell commands (creating files/directories, installing packages, running tests, building projects, git operations)
+- "other": Planning, documentation, analysis tasks that don't require shell commands or emails
 
-Examples of tasks that need shell commands:
+Examples of email tasks:
+- "Send email to someone@example.com: Subject: Hello ..."
+- "Email john@company.com about the project status"
+
+Examples of shell tasks:
 - Creating files/directories
 - Installing packages
 - Running tests
 - Building projects
 - Git operations
 
-Examples of tasks that don't need shell commands:
+Examples of other tasks:
 - Planning or documentation tasks
 - Analysis or research tasks
 - Simple text processing that can be done in Python
@@ -383,7 +455,7 @@ Examples of tasks that don't need shell commands:
         response = client.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": "You are a helpful AI assistant that analyzes tasks and suggests shell commands when needed. Always respond with valid JSON."},
+                {"role": "system", "content": "You are a helpful AI assistant that analyzes tasks and categorizes them. Always respond with valid JSON."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=1000,
@@ -437,15 +509,16 @@ def main():
         print(f"⚠️  OpenAI client initialization failed: {e}")
         print("Continuing without AI analysis...")
     
-    print("\n🚀 Tinker is now running with Phase 1.3 capabilities...")
+    print("\n🚀 Tinker is now running with Phase 2.3 capabilities...")
     print("- 🤖 AI-powered task analysis")
     print("- 💻 Shell command execution with user approval")
+    print("- 📧 Email sending functionality")
     print("- 📋 Detailed task completion reports")
     print("\nScanning for tasks every 5 seconds...")
     print("Press Ctrl+C to stop\n")
     
     # Initial state update
-    update_state(tinker_folder, "🚀 Tinker Phase 1.3 started - AI shell capabilities enabled")
+    update_state(tinker_folder, "🚀 Tinker Phase 2.3 started - AI shell + email capabilities enabled")
     
     try:
         while True:
