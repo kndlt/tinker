@@ -7,6 +7,8 @@ services:
     working_dir: /home/tinker
     command: tail -f /dev/null
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       - HOME=/home/tinker
       - PYTHONUNBUFFERED=1

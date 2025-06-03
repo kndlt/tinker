@@ -3,6 +3,21 @@ import json
 from .docker_manager import exec_in_container, container_running
 
 
+def _ensure_github_cli_ready():
+    """Helper function to ensure container is running and GitHub CLI is authenticated"""
+    if not container_running():
+        print("❌ Container is not running. Please start Tinker first.")
+        return False
+    
+    # Check if authenticated
+    auth_result = exec_in_container(["gh", "auth", "status"])
+    if auth_result.returncode != 0:
+        print("❌ GitHub CLI is not authenticated. Run 'tinker --github-setup' first.")
+        return False
+    
+    return True
+
+
 def setup_github_cli_auth():
     """Setup GitHub CLI authentication using token or SSH"""
     if not container_running():
@@ -36,17 +51,19 @@ def setup_github_cli_auth():
         else:
             print(f"❌ Token authentication failed: {token_auth_result.stderr}")
     
-    print("❌ GitHub CLI authentication requires manual setup")
+    print("❌ GitHub CLI authentication requires setup")
     print("💡 To authenticate GitHub CLI, you have two options:")
     print()
-    print("1. Using a Personal Access Token:")
+    print("1. Using a Personal Access Token (Recommended):")
     print("   - Create a token at: https://github.com/settings/tokens")
-    print("   - Set GITHUB_TOKEN environment variable in your .env file")
-    print("   - Restart the container and try again")
+    print("   - Required scopes: repo, read:org, read:user, user:email")
+    print("   - Add GITHUB_TOKEN=your_token_here to your .env file")
+    print("   - Restart the container: docker compose restart")
+    print("   - Run: tinker --github-setup")
     print()
     print("2. Manual interactive authentication:")
     print("   - Run: docker exec -it tinker_sandbox gh auth login")
-    print("   - Follow the prompts to authenticate")
+    print("   - Follow the prompts to authenticate via web browser")
     print()
     return False
 
@@ -73,20 +90,13 @@ def check_github_cli_status():
         return True
     else:
         print("❌ GitHub CLI is not authenticated")
-        print("💡 Run 'tinker github-setup' to authenticate")
+        print("💡 Run 'tinker --github-setup' to authenticate")
         return False
 
 
 def list_github_issues(repo, state="open", limit=10):
     """List GitHub issues for a repository"""
-    if not container_running():
-        print("❌ Container is not running. Please start Tinker first.")
-        return None
-    
-    # Check if authenticated
-    auth_result = exec_in_container(["gh", "auth", "status"])
-    if auth_result.returncode != 0:
-        print("❌ GitHub CLI is not authenticated. Run 'tinker github-setup' first.")
+    if not _ensure_github_cli_ready():
         return None
     
     print(f"📋 Fetching {state} issues from {repo} (limit: {limit})...")
@@ -135,14 +145,7 @@ def list_github_issues(repo, state="open", limit=10):
 
 def get_github_issue(repo, issue_number):
     """Get specific GitHub issue details"""
-    if not container_running():
-        print("❌ Container is not running. Please start Tinker first.")
-        return None
-    
-    # Check if authenticated
-    auth_result = exec_in_container(["gh", "auth", "status"])
-    if auth_result.returncode != 0:
-        print("❌ GitHub CLI is not authenticated. Run 'tinker github-setup' first.")
+    if not _ensure_github_cli_ready():
         return None
     
     print(f"📋 Fetching issue #{issue_number} from {repo}...")
@@ -193,14 +196,7 @@ def get_github_issue(repo, issue_number):
 
 def search_github_issues(repo, query, state="open", limit=10):
     """Search GitHub issues for a repository"""
-    if not container_running():
-        print("❌ Container is not running. Please start Tinker first.")
-        return None
-    
-    # Check if authenticated
-    auth_result = exec_in_container(["gh", "auth", "status"])
-    if auth_result.returncode != 0:
-        print("❌ GitHub CLI is not authenticated. Run 'tinker github-setup' first.")
+    if not _ensure_github_cli_ready():
         return None
     
     print(f"🔍 Searching for '{query}' in {state} issues from {repo}...")
@@ -250,14 +246,7 @@ def search_github_issues(repo, query, state="open", limit=10):
 
 def create_github_issue(repo, title, body="", labels=None, assignees=None):
     """Create a new GitHub issue"""
-    if not container_running():
-        print("❌ Container is not running. Please start Tinker first.")
-        return None
-    
-    # Check if authenticated
-    auth_result = exec_in_container(["gh", "auth", "status"])
-    if auth_result.returncode != 0:
-        print("❌ GitHub CLI is not authenticated. Run 'tinker github-setup' first.")
+    if not _ensure_github_cli_ready():
         return None
     
     print(f"📝 Creating new issue in {repo}...")

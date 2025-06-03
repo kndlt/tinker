@@ -136,7 +136,9 @@ GitHub CLI can be authenticated in two ways:
 
 1. **Personal Access Token (Recommended)**:
    - Create a token at [GitHub Settings > Personal Access Tokens](https://github.com/settings/tokens)
+   - Required scopes: `repo`, `read:org`, `read:user`, `user:email`
    - Add `GITHUB_TOKEN=your_token_here` to your `.env` file
+   - Restart the container: `docker compose restart`
    - Run `tinker --github-setup` to authenticate
 
 2. **Interactive Authentication**:

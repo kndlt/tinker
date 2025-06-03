@@ -10,11 +10,9 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
 
 def ensure_tinker_dir():
     os.makedirs(TINKER_DIR, exist_ok=True)
-    # Also ensure SSH directory exists
-    ssh_dir = os.path.join(TINKER_DIR, "ssh")
-    os.makedirs(ssh_dir, exist_ok=True)
-    # Set proper permissions for SSH directory
-    os.chmod(ssh_dir, 0o700)
+    # Ensure workspace directory exists
+    workspace_dir = os.path.join(TINKER_DIR, "workspace")
+    os.makedirs(workspace_dir, exist_ok=True)
 
 
 def container_exists():
@@ -51,7 +49,7 @@ def start_container():
         ], cwd=PROJECT_ROOT, check=True)
     
     # Setup SSH for GitHub if container was just created or SSH not configured
-    ssh_dir = os.path.join(TINKER_DIR, "ssh")
+    ssh_dir = os.path.join(TINKER_DIR, "workspace", ".ssh")
     private_key_path = os.path.join(ssh_dir, "id_ed25519")
     
     if container_was_created or not os.path.exists(private_key_path):
@@ -245,7 +243,7 @@ def check_ssh_status():
         print("❌ Container is not running. Please start Tinker first.")
         return False
     
-    ssh_dir = os.path.join(TINKER_DIR, "ssh")
+    ssh_dir = os.path.join(TINKER_DIR, "workspace", ".ssh")
     private_key_path = os.path.join(ssh_dir, "id_ed25519")
     public_key_path = os.path.join(ssh_dir, "id_ed25519.pub")
     
@@ -314,6 +312,19 @@ def reset_ssh_setup():
     
     # Generate new keys
     return setup_ssh_for_github()
+
+
+def restart_container():
+    """Restart the container to pick up new environment variables"""
+    if container_running():
+        print("🔄 Restarting container to load new environment variables...")
+        subprocess.run([
+            "docker", "compose", "restart"
+        ], cwd=PROJECT_ROOT, check=True)
+        print("✅ Container restarted successfully")
+    else:
+        print("ℹ️  Container is not running, starting it...")
+        start_container()
 
 
 # Add convenience functions for CLI usage
