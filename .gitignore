@@ -4,6 +4,9 @@ __pycache__/
 *$py.class
 .tinker
 .DS_Store
+# SSH keys should not be committed
+# SSH keys now stored in workspace/.ssh/
+.tinker/workspace/.ssh/id_*
 # C extensions
 *.so
 

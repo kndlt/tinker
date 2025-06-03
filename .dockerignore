@@ -2,6 +2,11 @@
 .git
 .gitignore
 
+# SSH keys - these should not be in the Docker image
+# SSH keys now stored in workspace/.ssh/
+.tinker/workspace/.ssh/id_*
+**/.ssh/
+
 # Python
 __pycache__/
 *.py[cod]
