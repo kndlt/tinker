@@ -368,22 +368,20 @@ def process_task(task_file, tinker_folder, client=None):
 def execute_shell_command(command, timeout=30):
     """Execute a shell command inside the Docker container and return the result."""
     try:
-        print(f"🔧 Executing (in Docker): {command}")
+        # Simple, clean command display
+        print(f"\033[1;96m$ \033[1;37m{command}\033[0m")
+        
         # Always run in bash for shell features (redirects, etc)
         result = docker_manager.exec_in_container(["bash", "-c", command])
         
-        # Display output in greyed-out format
+        # Display output in simple greyed-out format
         if result.stdout:
-            print("\033[90m" + "─" * 50 + " OUTPUT " + "─" * 50 + "\033[0m")
             for line in result.stdout.splitlines():
-                print(f"\033[90m{line}\033[0m")
-            print("\033[90m" + "─" * 107 + "\033[0m")
+                print(f"\033[90m  {line}\033[0m")
         
         if result.stderr:
-            print("\033[90m" + "─" * 50 + " STDERR " + "─" * 50 + "\033[0m")
             for line in result.stderr.splitlines():
-                print(f"\033[90m{line}\033[0m")
-            print("\033[90m" + "─" * 107 + "\033[0m")
+                print(f"\033[91m  {line}\033[0m")  # Red for stderr
         
         return {
             'success': result.returncode == 0,
@@ -401,13 +399,11 @@ def execute_shell_command(command, timeout=30):
 
 def get_user_approval_for_command(command, context=""):
     """Ask user for approval before executing a shell command."""
-    print(f"\n🤖 Tinker wants to execute a shell command:")
-    print(f"📋 Context: {context}")
-    print(f"💻 Command: {command}")
-    print("\n⚠️  This command will be executed on your system.")
+    print(f"\n\033[93m⚠️  \033[1;37mTinker wants to run:\033[0m \033[1;33m{command}\033[0m")
+    print(f"\033[90m   Context: {context}\033[0m")
     
     while True:
-        response = input("Do you approve this command? [y/N/e(dit)]: ").strip().lower()
+        response = input("Approve? [y/N/e(dit)]: ").strip().lower()
         
         if response in ['y', 'yes']:
             return True, command
