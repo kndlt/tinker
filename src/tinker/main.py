@@ -14,6 +14,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from . import docker_manager
 from .email_manager import send_email_from_task
+from . import github_manager
 
 def is_process_running(pid):
     """Check if a process with given PID is running."""
@@ -482,6 +483,22 @@ def main():
     parser.add_argument('--ssh-reset', action='store_true', 
                        help='Reset and regenerate SSH keys')
     
+    # GitHub CLI arguments
+    parser.add_argument('--github-status', action='store_true', 
+                       help='Check GitHub CLI authentication status')
+    parser.add_argument('--github-setup', action='store_true', 
+                       help='Setup GitHub CLI authentication')
+    parser.add_argument('--github-issues', metavar='REPO', 
+                       help='List GitHub issues for a repository (format: owner/repo)')
+    parser.add_argument('--github-issue', nargs=2, metavar=('REPO', 'NUMBER'),
+                       help='Get specific GitHub issue (format: owner/repo issue_number)')
+    parser.add_argument('--github-search', nargs=2, metavar=('REPO', 'QUERY'),
+                       help='Search GitHub issues (format: owner/repo "search query")')
+    parser.add_argument('--issue-state', choices=['open', 'closed', 'all'], default='open',
+                       help='Issue state to filter by (default: open)')
+    parser.add_argument('--issue-limit', type=int, default=10,
+                       help='Maximum number of issues to return (default: 10)')
+    
     args = parser.parse_args()
     
     # Handle SSH-related commands
@@ -500,6 +517,51 @@ def main():
                 docker_manager.ensure_github_ssh()
         except Exception as e:
             print(f"❌ Failed to setup SSH: {e}")
+        return
+    
+    # Handle GitHub CLI commands
+    if args.github_status:
+        print("🔍 Checking GitHub CLI Status...")
+        docker_manager.start_container()
+        github_manager.check_github_cli_status()
+        return
+    
+    if args.github_setup:
+        print("🔧 Setting up GitHub CLI Authentication...")
+        try:
+            docker_manager.start_container()
+            github_manager.setup_github_cli_auth()
+        except Exception as e:
+            print(f"❌ Failed to setup GitHub CLI: {e}")
+        return
+    
+    if args.github_issues:
+        print(f"📋 Listing GitHub Issues for {args.github_issues}...")
+        try:
+            docker_manager.start_container()
+            github_manager.list_github_issues(args.github_issues, args.issue_state, args.issue_limit)
+        except Exception as e:
+            print(f"❌ Failed to list issues: {e}")
+        return
+    
+    if args.github_issue:
+        repo, issue_number = args.github_issue
+        print(f"📋 Getting GitHub Issue #{issue_number} from {repo}...")
+        try:
+            docker_manager.start_container()
+            github_manager.get_github_issue(repo, issue_number)
+        except Exception as e:
+            print(f"❌ Failed to get issue: {e}")
+        return
+    
+    if args.github_search:
+        repo, query = args.github_search
+        print(f"🔍 Searching GitHub Issues in {repo} for '{query}'...")
+        try:
+            docker_manager.start_container()
+            github_manager.search_github_issues(repo, query, args.issue_state, args.issue_limit)
+        except Exception as e:
+            print(f"❌ Failed to search issues: {e}")
         return
     
     # Start or reuse the persistent Docker container

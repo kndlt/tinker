@@ -104,3 +104,50 @@ poetry run tinker --ssh-reset
 
 The SSH key will be stored in `.tinker/workspace/.ssh/` and is accessible at `/home/tinker/.ssh/` in the Docker container.
 
+## GitHub CLI Integration
+
+Tinker includes GitHub CLI (gh) for interacting with GitHub repositories and issues. The GitHub CLI leverages the same SSH authentication setup used for git operations.
+
+### GitHub CLI Commands
+
+```bash
+# Check GitHub CLI authentication status
+tinker --github-status
+
+# Setup GitHub CLI authentication
+tinker --github-setup
+
+# List GitHub issues for a repository
+tinker --github-issues owner/repo
+
+# Get a specific issue
+tinker --github-issue owner/repo 123
+
+# Search issues in a repository
+tinker --github-search owner/repo "bug label:urgent"
+
+# Additional options for issue commands
+tinker --github-issues owner/repo --issue-state all --issue-limit 20
+```
+
+### GitHub CLI Authentication
+
+GitHub CLI can be authenticated in two ways:
+
+1. **Personal Access Token (Recommended)**:
+   - Create a token at [GitHub Settings > Personal Access Tokens](https://github.com/settings/tokens)
+   - Add `GITHUB_TOKEN=your_token_here` to your `.env` file
+   - Run `tinker --github-setup` to authenticate
+
+2. **Interactive Authentication**:
+   - Run: `docker exec -it tinker_sandbox gh auth login`
+   - Follow the prompts to authenticate via web browser
+
+### GitHub CLI Features
+
+- 📋 List repository issues with filtering by state (open/closed/all)
+- 🔍 Search issues with GitHub's search syntax
+- 📖 View detailed issue information including labels and assignees  
+- 🏷️ Support for issue labels, assignees, and metadata
+- 🔗 Direct URLs to issues for easy access
+
