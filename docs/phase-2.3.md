@@ -11,19 +11,19 @@ For SMTP, I've configured Brevo and the SMTP details are in the .env file.
 ## Tasks
 
 ### 1. Setup Dependencies
-- [ ] Add email libraries to `pyproject.toml` 
-- [ ] Install packages in Docker container
+- [x] Add email libraries to `pyproject.toml` 
+- [x] Install packages in Docker container
 
 ### 2. Create Email Module
-- [ ] Create `src/tinker/email_manager.py`
-- [ ] Implement SMTP connection with Brevo
-- [ ] Add email sending functionality with error handling
+- [x] Create `src/tinker/email_manager.py`
+- [x] Implement SMTP connection with Brevo
+- [x] Add email sending functionality with error handling
 
 ### 3. Integrate with Main System
-- [ ] Update `main.py` to detect email tasks
-- [ ] Add email processing to task workflow
+- [x] Update `main.py` to detect email tasks
+- [x] Add email processing to task workflow
 
 ### 4. Test Implementation
-- [ ] Test with sample task `task--1.2--send-mail.md`
-- [ ] Verify emails send to kndlt@sprited.app
+- [x] Test with sample task `task--1.2--send-mail.md`
+- [x] Verify emails send to kndlt@sprited.app
 
