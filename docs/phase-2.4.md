@@ -13,7 +13,7 @@ First, I want to add ssh authentication for GitHub.
 **Automatic SSH Key Generation:**
 - SSH keys are automatically generated when the container starts for the first time
 - Uses ED25519 encryption for better security
-- Keys are stored in `.tinker/ssh/` and mounted to `/home/tinker/.ssh/` in the container
+- Keys are stored in `.tinker/workspace/.ssh/` and accessible at `/home/tinker/.ssh/` in the container
 - Proper file permissions are automatically set (600 for private key, 644 for public key)
 
 **User-Friendly Setup Process:**
@@ -70,7 +70,7 @@ First, I want to add ssh authentication for GitHub.
 ## Technical Implementation
 
 ### Docker Integration
-- SSH directory `.tinker/ssh/` is mounted as volume
+- SSH directory `.tinker/workspace/.ssh/` is part of the workspace volume
 - Container includes `openssh-client` package
 - Proper user permissions maintained between host and container
 

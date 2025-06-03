@@ -4,7 +4,6 @@ services:
     container_name: tinker_sandbox
     volumes:
       - ./.tinker/workspace:/home/tinker
-      - ./.tinker/ssh:/home/tinker/.ssh
     working_dir: /home/tinker
     command: tail -f /dev/null
     restart: unless-stopped

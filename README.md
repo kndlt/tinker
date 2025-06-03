@@ -102,5 +102,5 @@ poetry run tinker --ssh-reset
 3. Paste the public key that Tinker displays
 4. Click "Add SSH key"
 
-The SSH key will be stored in `.tinker/ssh/` and mounted into the Docker container at `/home/tinker/.ssh/`.
+The SSH key will be stored in `.tinker/workspace/.ssh/` and is accessible at `/home/tinker/.ssh/` in the Docker container.
 

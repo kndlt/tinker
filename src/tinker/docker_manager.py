@@ -80,7 +80,7 @@ def remove_container():
 
 def setup_ssh_for_github():
     """Setup SSH keys for GitHub authentication"""
-    ssh_dir = os.path.join(TINKER_DIR, "ssh")
+    ssh_dir = os.path.join(TINKER_DIR, "workspace", ".ssh")
     private_key_path = os.path.join(ssh_dir, "id_ed25519")
     public_key_path = os.path.join(ssh_dir, "id_ed25519.pub")
     
@@ -292,7 +292,7 @@ def reset_ssh_setup():
         print("❌ Container is not running. Please start Tinker first.")
         return False
     
-    ssh_dir = os.path.join(TINKER_DIR, "ssh")
+    ssh_dir = os.path.join(TINKER_DIR, "workspace", ".ssh")
     
     print("🔄 Resetting SSH setup for GitHub...")
     
