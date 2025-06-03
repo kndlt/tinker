@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     nano \
     htop \
     procps \
+    iputils-ping \
     && rm -rf /var/lib/apt/lists/*
 
 # Create tinker user with home directory as /home/tinker

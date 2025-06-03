@@ -6,9 +6,8 @@ In Phase 2.2, we will test it's capabilities. Ask the question,
 "what can it do?"
 
 ## Capabilities Checklist
-- [ ] Create and delete files inside the container
-- [ ] Install a package inside the container
-- [ ] Run a simple echo command
+- [x] Tinker can process task to create a folder.
+- [x] Tinker can process task to create a file.
 - [ ] Use curl to fetch a web page
 - [ ] Create a Python virtual environment
 - [ ] Run a Python script
