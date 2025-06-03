@@ -26,16 +26,14 @@ def container_running():
 
 def start_container():
     ensure_tinker_dir()
-    # Mount the user's home directory to .tinker/tinker inside the container
-    user_home = os.path.expanduser("~")
-    tinker_user_dir = os.path.join(TINKER_DIR, "tinker")
-    os.makedirs(tinker_user_dir, exist_ok=True)
+    # Mount only the .tinker/workspace directory from the project root into the container as /workspace
+    tinker_workspace_dir = os.path.join(TINKER_DIR, "workspace")
+    os.makedirs(tinker_workspace_dir, exist_ok=True)
     if not container_exists():
         subprocess.run([
             "docker", "run", "-d",
             "--name", CONTAINER_NAME,
-            "-v", f"{user_home}:{tinker_user_dir}",
-            "-v", f"{TINKER_DIR}:/workspace",
+            "-v", f"{tinker_workspace_dir}:/workspace",
             "-w", "/workspace",
             DOCKER_IMAGE,
             "tail", "-f", "/dev/null"
