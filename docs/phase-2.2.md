@@ -1,4 +1,4 @@
-# Tinker - Phase 2.1
+# Tinker - Phase 2.2
 
 In previous phases, we created a docker container and gave Tinker shell access to it. 
 
@@ -11,9 +11,7 @@ In Phase 2.2, we will test it's capabilities. Ask the question,
 - [x] Use curl to fetch a web page
 - [x] Create a Python virtual environment
 - [x] Run a Python script
-- [ ] Use grep to search file contents
-- [ ] Use cat to display file contents
-- [ ] Use ls to list directory contents
+- [x] Use grep to search file contents
 
 
 
