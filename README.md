@@ -20,9 +20,10 @@ curl -sSL https://install.python-poetry.org | python3 -
   ```
 - Or download Docker Desktop from https://www.docker.com/products/docker-desktop/ (macOS/Windows)
 - For Linux, follow: https://docs.docker.com/engine/install/
-- Verify installation:
+- Verify installation (Docker Compose is included with Docker Desktop):
   ```sh
   docker --version
+  docker compose version
   ```
 
 ### 3. Clone the repo and install
@@ -59,3 +60,4 @@ Or enter Poetry shell:
 poetry shell
 tinker
 ```
+

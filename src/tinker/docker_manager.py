@@ -1,9 +1,9 @@
 import os
 import subprocess
 
-DOCKER_IMAGE = "python:3.12-slim"  # You can customize this
 CONTAINER_NAME = "tinker_sandbox"
 TINKER_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../.tinker'))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
 
 
 def ensure_tinker_dir():
@@ -26,22 +26,19 @@ def container_running():
 
 def start_container():
     ensure_tinker_dir()
-    # Mount the user's home directory to .tinker/tinker inside the container
-    user_home = os.path.expanduser("~")
-    tinker_user_dir = os.path.join(TINKER_DIR, "tinker")
-    os.makedirs(tinker_user_dir, exist_ok=True)
+    # Create workspace directory
+    tinker_workspace_dir = os.path.join(TINKER_DIR, "workspace")
+    os.makedirs(tinker_workspace_dir, exist_ok=True)
+    
+    # Use docker-compose to start the container
     if not container_exists():
         subprocess.run([
-            "docker", "run", "-d",
-            "--name", CONTAINER_NAME,
-            "-v", f"{user_home}:{tinker_user_dir}",
-            "-v", f"{TINKER_DIR}:/workspace",
-            "-w", "/workspace",
-            DOCKER_IMAGE,
-            "tail", "-f", "/dev/null"
-        ], check=True)
+            "docker", "compose", "up", "-d"
+        ], cwd=PROJECT_ROOT, check=True)
     elif not container_running():
-        subprocess.run(["docker", "start", CONTAINER_NAME], check=True)
+        subprocess.run([
+            "docker", "compose", "start"
+        ], cwd=PROJECT_ROOT, check=True)
 
 
 def exec_in_container(cmd):
@@ -51,9 +48,13 @@ def exec_in_container(cmd):
 
 def stop_container():
     if container_running():
-        subprocess.run(["docker", "stop", CONTAINER_NAME], check=True)
+        subprocess.run([
+            "docker", "compose", "stop"
+        ], cwd=PROJECT_ROOT, check=True)
 
 
 def remove_container():
     if container_exists():
-        subprocess.run(["docker", "rm", "-f", CONTAINER_NAME], check=True)
+        subprocess.run([
+            "docker", "compose", "down"
+        ], cwd=PROJECT_ROOT, check=True)

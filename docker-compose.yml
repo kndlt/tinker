@@ -1,0 +1,17 @@
+services:
+  tinker-sandbox:
+    build: .
+    container_name: tinker_sandbox
+    volumes:
+      - ./.tinker/workspace:/home/tinker
+    working_dir: /home/tinker
+    command: tail -f /dev/null
+    restart: unless-stopped
+    environment:
+      - HOME=/home/tinker
+      - PYTHONUNBUFFERED=1
+      - DEBIAN_FRONTEND=noninteractive
+    stdin_open: true
+    tty: true
+    init: true
+    user: "1000:1000"

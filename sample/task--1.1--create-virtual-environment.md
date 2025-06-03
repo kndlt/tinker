@@ -1,0 +1,5 @@
+- [ ] Create a folder ~/task1.a folder
+- [ ] Cd into it and create a
+- [ ] Create a virtual environment in ./venv/
+- [ ] Activate it and install numpy
+- [ ] Do a simple operation in numpy and put output into sample_numpy_output.txt.

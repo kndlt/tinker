@@ -3,7 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 .tinker
-
+.DS_Store
 # C extensions
 *.so
 
