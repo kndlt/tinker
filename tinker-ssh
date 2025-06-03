@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+"""
+Tinker SSH Management CLI
+A convenience script for managing GitHub SSH authentication in Tinker
+"""
+import sys
+import os
+
+# Add the src directory to path so we can import tinker modules
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+
+from tinker import docker_manager
+
+def main():
+    """Simple CLI for SSH management"""
+    if len(sys.argv) < 2:
+        print("🔧 Tinker SSH Management")
+        print("Usage:")
+        print("  ./tinker-ssh status  - Check SSH authentication status")
+        print("  ./tinker-ssh setup   - Setup GitHub SSH authentication")
+        print("  ./tinker-ssh reset   - Reset and regenerate SSH keys")
+        return
+    
+    command = sys.argv[1].lower()
+    
+    if command == 'status':
+        print("🔍 Checking GitHub SSH Status...")
+        docker_manager.ssh_status()
+    elif command == 'setup':
+        print("🔧 Setting up GitHub SSH Authentication...")
+        try:
+            docker_manager.start_container()
+            docker_manager.ensure_github_ssh()
+        except Exception as e:
+            print(f"❌ Failed to setup SSH: {e}")
+    elif command == 'reset':
+        print("🔄 Resetting GitHub SSH Authentication...")
+        try:
+            docker_manager.start_container()
+            docker_manager.ssh_reset()
+        except Exception as e:
+            print(f"❌ Failed to reset SSH: {e}")
+    else:
+        print(f"❌ Unknown command: {command}")
+        print("Valid commands: status, setup, reset")
+
+if __name__ == "__main__":
+    main()

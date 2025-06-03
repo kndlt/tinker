@@ -61,3 +61,46 @@ poetry shell
 tinker
 ```
 
+## GitHub SSH Authentication
+
+Tinker automatically sets up SSH authentication for GitHub when it starts for the first time. This enables secure git operations within the Docker container.
+
+### Automatic Setup
+
+When you first run Tinker, it will:
+1. 🔑 Generate an ED25519 SSH key pair
+2. 📋 Display the public key for you to add to GitHub
+3. ⏳ Wait for you to add the key to your GitHub account
+4. 🔍 Test the SSH connection
+5. ✅ Configure git to use SSH for GitHub repositories
+
+### Manual SSH Management
+
+You can also manage SSH authentication manually:
+
+```bash
+# Check SSH status
+poetry run tinker --ssh-status
+# or
+./tinker-ssh status
+
+# Setup/reset SSH authentication
+poetry run tinker --ssh-setup
+# or  
+./tinker-ssh setup
+
+# Reset and regenerate SSH keys
+poetry run tinker --ssh-reset
+# or
+./tinker-ssh reset
+```
+
+### Adding SSH Key to GitHub
+
+1. Go to [GitHub SSH Settings](https://github.com/settings/ssh/new)
+2. Give it a title like "Tinker Docker Container"  
+3. Paste the public key that Tinker displays
+4. Click "Add SSH key"
+
+The SSH key will be stored in `.tinker/ssh/` and mounted into the Docker container at `/home/tinker/.ssh/`.
+

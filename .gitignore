@@ -4,6 +4,8 @@ __pycache__/
 *$py.class
 .tinker
 .DS_Store
+# SSH keys should not be committed
+.tinker/ssh/
 # C extensions
 *.so
 

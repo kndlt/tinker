@@ -6,6 +6,8 @@ import signal
 import atexit
 import subprocess
 import json
+import sys
+import argparse
 from datetime import datetime
 from pathlib import Path
 from openai import OpenAI
@@ -470,6 +472,36 @@ Examples of other tasks:
         return None
 
 def main():
+    """Main Tinker CLI"""
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Tinker - Autonomous AI Agent')
+    parser.add_argument('--ssh-status', action='store_true', 
+                       help='Check GitHub SSH authentication status')
+    parser.add_argument('--ssh-setup', action='store_true', 
+                       help='Setup/reset GitHub SSH authentication')
+    parser.add_argument('--ssh-reset', action='store_true', 
+                       help='Reset and regenerate SSH keys')
+    
+    args = parser.parse_args()
+    
+    # Handle SSH-related commands
+    if args.ssh_status:
+        print("🔍 Checking GitHub SSH Status...")
+        docker_manager.ssh_status()
+        return
+    
+    if args.ssh_setup or args.ssh_reset:
+        print("🔧 Setting up GitHub SSH Authentication...")
+        try:
+            docker_manager.start_container()
+            if args.ssh_reset:
+                docker_manager.ssh_reset()
+            else:
+                docker_manager.ensure_github_ssh()
+        except Exception as e:
+            print(f"❌ Failed to setup SSH: {e}")
+        return
+    
     # Start or reuse the persistent Docker container
     try:
         docker_manager.start_container()
