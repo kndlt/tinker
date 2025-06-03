@@ -1,0 +1,17 @@
+services:
+  tinker-sandbox:
+    image: python:3.12-slim
+    container_name: tinker_sandbox
+    volumes:
+      - ./.tinker/workspace:/workspace
+    working_dir: /workspace
+    command: tail -f /dev/null
+    restart: unless-stopped
+    environment:
+      - HOME=/workspace
+      - PYTHONUNBUFFERED=1
+      - DEBIAN_FRONTEND=noninteractive
+    stdin_open: true
+    tty: true
+    # Install some common packages for development
+    init: true
