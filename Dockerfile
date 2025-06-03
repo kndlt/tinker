@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     htop \
     procps \
     iputils-ping \
+    dnsutils \
     && rm -rf /var/lib/apt/lists/*
 
 # Create tinker user with home directory as /home/tinker
