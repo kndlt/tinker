@@ -1,8 +1,8 @@
-# Tinker - Phase 3
+# Tinker - Phase 1.3
 
-In Phase 2, we introduced tasks/ongoing/done folders.
+In Phase 1.2, we introduced tasks/ongoing/done folders.
 
-In Phase 3, we want to give it actual ability to do some work. Let's start simple.
+In Phase 1.3, we want to give it actual ability to do some work. Let's start simple.
 
 - [x] Tinker has read access to shell. It is able to propose shell commands. When shell commands arise. It will have to pause and gather user's input. Depending on the task, it will propose shell commands.
 

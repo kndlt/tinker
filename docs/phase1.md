@@ -1,4 +1,4 @@
-# Tinker - Phase 1
+# Tinker - Phase 1.1
 
 Tinker is an autonomous AI agent that is serving as a virtual engineer at Sprited (an AGI company that builds Pixel--company's main public facing AI). 
 

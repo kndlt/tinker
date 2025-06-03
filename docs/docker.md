@@ -1,4 +1,4 @@
-# Tinker Phase 4: Docker-based Shell Execution
+# Tinker Phase 1.4: Docker-based Shell Execution
 
 All shell/task execution is now routed through a persistent Docker container for safety.
 
