@@ -8,9 +8,9 @@ In Phase 2.2, we will test it's capabilities. Ask the question,
 ## Capabilities Checklist
 - [x] Tinker can process task to create a folder.
 - [x] Tinker can process task to create a file.
-- [ ] Use curl to fetch a web page
-- [ ] Create a Python virtual environment
-- [ ] Run a Python script
+- [x] Use curl to fetch a web page
+- [x] Create a Python virtual environment
+- [x] Run a Python script
 - [ ] Use grep to search file contents
 - [ ] Use cat to display file contents
 - [ ] Use ls to list directory contents
