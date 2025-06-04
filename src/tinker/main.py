@@ -278,75 +278,11 @@ def process_task(task_file, tinker_folder, client=None):
                             print(f"❌ Command failed (exit code: {result.get('returncode', 'unknown')})")
                             task_result["errors"].append(result["stderr"])
                             
-                            # Phase 2.7: Analyze the error and suggest fixes
-                            print("🔍 Analyzing error...")
-                            error_analysis = analyze_command_result(
-                                final_command, 
-                                result["stdout"], 
-                                result["stderr"], 
-                                result["returncode"], 
-                                client
-                            )
-                            
-                            if error_analysis and error_analysis.get("is_recoverable", False):
-                                print(f"\n🤖 AI Analysis: {error_analysis.get('explanation', 'Unknown error')}")
-                                suggested_fix = error_analysis.get("suggested_fix")
-                                confidence = error_analysis.get("confidence", 0.0)
-                                
-                                if suggested_fix and suggested_fix != "manual_intervention":
-                                    print(f"💡 Suggested fix (confidence: {confidence:.1f}): {suggested_fix}")
-                                    print("\nOptions:")
-                                    print("  r) Retry with suggested fix")
-                                    print("  s) Skip this command")
-                                    print("  a) Abort task")
-                                    
-                                    while True:
-                                        choice = input("Choose [r/s/a]: ").strip().lower()
-                                        if choice == 'r':
-                                            print(f"🔄 Retrying with: {suggested_fix}")
-                                            retry_result = execute_shell_command(suggested_fix)
-                                            if retry_result["success"]:
-                                                print("✅ Fix succeeded!")
-                                                task_result["commands_executed"].append({
-                                                    "command": suggested_fix,
-                                                    "success": True,
-                                                    "output": retry_result["stdout"][:500],
-                                                    "error": None
-                                                })
-                                                break
-                                            else:
-                                                print("❌ Fix also failed")
-                                                print("Options: s) Skip this command, a) Abort task")
-                                                choice = input("Choose [s/a]: ").strip().lower()
-                                                if choice == 'a':
-                                                    print("🛑 Task execution aborted by user")
-                                                    break
-                                                else:
-                                                    print("⏭️ Skipping command")
-                                                    break
-                                        elif choice == 's':
-                                            print("⏭️ Skipping command")
-                                            break
-                                        elif choice == 'a':
-                                            print("🛑 Task execution aborted by user")
-                                            break
-                                        else:
-                                            print("Please enter 'r', 's', or 'a'")
-                                    
-                                    if choice == 'a':
-                                        break
-                                else:
-                                    print("🔧 Manual intervention needed")
-                                    continue_choice = input("Continue with remaining commands? [y/N]: ").strip().lower()
-                                    if continue_choice not in ['y', 'yes']:
-                                        print("🛑 Task execution aborted by user")
-                                        break
-                            else:
-                                # Fallback to original behavior
-                                continue_choice = input("Command failed. Continue with remaining commands? [y/N]: ").strip().lower()
-                                if continue_choice not in ['y', 'yes']:
-                                    print("🛑 Task execution aborted by user")
-                                    break
+                            # Ask user if they want to continue or abort
+                            continue_choice = input("Command failed. Continue with remaining commands? [y/N]: ").strip().lower()
+                            if continue_choice not in ['y', 'yes']:
+                                print("🛑 Task execution aborted by user")
+                                break
                     else:
                         print(f"⏭️  Skipping command {i}")
                         task_result["errors"].append(f"Command {i} rejected by user")
@@ -542,55 +478,6 @@ Examples of other tasks:
         
     except Exception as e:
         print(f"⚠️  AI analysis failed: {e}")
-        return None
-
-def analyze_command_result(command, stdout, stderr, returncode, client=None):
-    """Analyze a failed command result and suggest fixes."""
-    if not client or returncode == 0:
-        return None
-    
-    try:
-        prompt = f"""You are Tinker, an AI assistant helping debug failed shell commands.
-
-A command failed and I need your help to understand what went wrong and suggest a fix.
-
-Command that failed: {command}
-Exit code: {returncode}
-STDOUT: {stdout}
-STDERR: {stderr}
-
-Please analyze this failure and respond with a JSON object containing:
-- "error_type": string (category like "missing_package", "permission_error", "network_error", "file_not_found", "syntax_error", "unknown")
-- "explanation": string (clear explanation of what went wrong)
-- "suggested_fix": string (a specific command to fix the issue, or "manual_intervention" if human help is needed)
-- "is_recoverable": boolean (true if this can likely be fixed automatically)
-- "confidence": number (0.0-1.0, how confident you are in the diagnosis)
-
-Common error patterns to look for:
-- Missing packages/dependencies (pip install, apt install, npm install, etc.)
-- Permission errors (chmod, sudo, file ownership)
-- Network connectivity issues
-- File/directory not found
-- Syntax errors in commands
-- Environment/PATH issues
-
-Focus on practical, specific fixes when possible."""
-
-        response = client.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are a helpful AI assistant that analyzes command failures and suggests fixes. Always respond with valid JSON."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=800,
-            temperature=0.3
-        )
-        
-        result = json.loads(response.choices[0].message.content)
-        return result
-        
-    except Exception as e:
-        print(f"⚠️  Error analysis failed: {e}")
         return None
 
 def main():
