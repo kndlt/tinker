@@ -34,19 +34,37 @@ cd tinker
 poetry install
 ```
 
-### 4. Set up OpenAI API Key
+### 4. Set up AI API Keys
+
+**Primary: Claude (Anthropic) - Recommended for Phase 3.1**
 
 Create a `.env` file in the project root:
 
 ```bash
-echo "OPENAI_API_KEY=your-api-key-here" > .env
+echo "ANTHROPIC_API_KEY=your-anthropic-api-key-here" > .env
 ```
 
 Or set it as an environment variable:
 
 ```bash
-export OPENAI_API_KEY="your-api-key-here"
+export ANTHROPIC_API_KEY="your-anthropic-api-key-here"
 ```
+
+**Fallback: OpenAI (GPT-4)**
+
+If you prefer OpenAI or don't have an Anthropic API key:
+
+```bash
+echo "OPENAI_API_KEY=your-openai-api-key-here" > .env
+```
+
+Or set it as an environment variable:
+
+```bash
+export OPENAI_API_KEY="your-openai-api-key-here"
+```
+
+> **Note**: Tinker will prioritize Claude (Anthropic) if both API keys are available. Claude Sonnet provides enhanced coding capabilities for Phase 3.1.
 
 ### 5. Run Tinker
 

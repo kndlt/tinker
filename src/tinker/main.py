@@ -11,6 +11,7 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 from openai import OpenAI
+from anthropic import Anthropic
 from dotenv import load_dotenv
 from . import docker_manager
 from .email_manager import send_email_from_task
@@ -155,7 +156,7 @@ def scan_for_tasks(tinker_folder):
     task_files = list(tasks_folder.glob("*.md"))
     return task_files
 
-def process_task(task_file, tinker_folder, client=None):
+def process_task(task_file, tinker_folder, client=None, client_type=None):
     """Process a single task file through the workflow."""
     task_name = task_file.name
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -185,7 +186,7 @@ def process_task(task_file, tinker_folder, client=None):
         # Phase 1.3: Analyze task with AI to determine if shell commands are needed
         update_state(tinker_folder, f"🤖 Analyzing task with AI: {task_name}")
         
-        ai_analysis = analyze_task_with_ai(task_content, client)
+        ai_analysis = analyze_task_with_ai(task_content, client, client_type)
         
         task_result = {"completed": False, "commands_executed": [], "errors": [], "emails_sent": []}
         
@@ -285,7 +286,8 @@ def process_task(task_file, tinker_folder, client=None):
                                 result["stdout"], 
                                 result["stderr"], 
                                 result["returncode"], 
-                                client
+                                client,
+                                client_type
                             )
                             
                             if error_analysis and error_analysis.get("is_recoverable", False):
@@ -484,8 +486,8 @@ def get_user_approval_for_command(command, context=""):
         else:
             print("Please enter 'y' for yes, 'n' for no, or 'e' to edit the command")
 
-def analyze_task_with_ai(task_content, client=None):
-    """Use OpenAI to analyze a task and suggest shell commands if needed."""
+def analyze_task_with_ai(task_content, client=None, client_type=None):
+    """Use AI to analyze a task and suggest shell commands if needed."""
     if not client:
         return None
     
@@ -527,24 +529,38 @@ Examples of other tasks:
 - Simple text processing that can be done in Python
 """
 
-        response = client.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are a helpful AI assistant that analyzes tasks and categorizes them. Always respond with valid JSON."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=1000,
-            temperature=0.3
-        )
+        if client_type == "anthropic":
+            # Use Anthropic Claude
+            response = client.messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=1000,
+                temperature=0.3,
+                system="You are a helpful AI assistant that analyzes tasks and categorizes them. Always respond with valid JSON.",
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            result = json.loads(response.content[0].text)
+        else:
+            # Use OpenAI GPT-4
+            response = client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are a helpful AI assistant that analyzes tasks and categorizes them. Always respond with valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=1000,
+                temperature=0.3
+            )
+            result = json.loads(response.choices[0].message.content)
         
-        result = json.loads(response.choices[0].message.content)
         return result
         
     except Exception as e:
         print(f"⚠️  AI analysis failed: {e}")
         return None
 
-def analyze_command_result(command, stdout, stderr, returncode, client=None):
+def analyze_command_result(command, stdout, stderr, returncode, client=None, client_type=None):
     """Analyze a failed command result and suggest fixes."""
     if not client or returncode == 0:
         return None
@@ -576,22 +592,74 @@ Common error patterns to look for:
 
 Focus on practical, specific fixes when possible."""
 
-        response = client.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are a helpful AI assistant that analyzes command failures and suggests fixes. Always respond with valid JSON."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=800,
-            temperature=0.3
-        )
+        if client_type == "anthropic":
+            # Use Anthropic Claude
+            response = client.messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=800,
+                temperature=0.3,
+                system="You are a helpful AI assistant that analyzes command failures and suggests fixes. Always respond with valid JSON.",
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            result = json.loads(response.content[0].text)
+        else:
+            # Use OpenAI GPT-4
+            response = client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are a helpful AI assistant that analyzes command failures and suggests fixes. Always respond with valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=800,
+                temperature=0.3
+            )
+            result = json.loads(response.choices[0].message.content)
         
-        result = json.loads(response.choices[0].message.content)
+        return result
         return result
         
     except Exception as e:
         print(f"⚠️  Error analysis failed: {e}")
         return None
+
+def initialize_ai_client():
+    """Initialize AI client with priority: Anthropic (Claude) -> OpenAI (GPT-4)."""
+    client = None
+    client_type = None
+    
+    # Try Anthropic first (Claude Sonnet 4)
+    anthropic_key = os.getenv('ANTHROPIC_API_KEY')
+    if anthropic_key:
+        try:
+            client = Anthropic(api_key=anthropic_key)
+            client_type = "anthropic"
+            print("✅ Claude (Anthropic) client initialized - Phase 3.1 enhanced coding capabilities enabled")
+            print("   Using claude-3-5-sonnet-20241022 for superior coding performance")
+            return client, client_type
+        except Exception as e:
+            print(f"⚠️  Anthropic client initialization failed: {e}")
+            print("   Falling back to OpenAI...")
+    
+    # Fallback to OpenAI
+    openai_key = os.getenv('OPENAI_API_KEY')
+    if openai_key:
+        try:
+            client = OpenAI(api_key=openai_key)
+            client_type = "openai"
+            print("✅ OpenAI client initialized - GPT-4 capabilities enabled")
+            return client, client_type
+        except Exception as e:
+            print(f"⚠️  OpenAI client initialization failed: {e}")
+    
+    # No API keys available
+    if not anthropic_key and not openai_key:
+        print("⚠️  No AI API keys found in environment")
+        print("   Add ANTHROPIC_API_KEY (preferred) or OPENAI_API_KEY to .env file")
+        print("   AI-powered task analysis will be disabled")
+    
+    return None, None
 
 def main():
     """Main Tinker CLI"""
@@ -709,23 +777,11 @@ def main():
         print("Exiting due to existing Tinker process.")
         return
     
-    # Initialize OpenAI client
-    client = None
-    try:
-        api_key = os.getenv('OPENAI_API_KEY')
-        if not api_key:
-            print("⚠️  OPENAI_API_KEY not found in environment")
-            print("   Phase 1.3 shell command analysis will be disabled")
-            print("   Add your OpenAI API key to .env file for full functionality")
-        else:
-            client = OpenAI(api_key=api_key)
-            print("✅ OpenAI client initialized - Phase 1.3 shell capabilities enabled")
-    except Exception as e:
-        print(f"⚠️  OpenAI client initialization failed: {e}")
-        print("Continuing without AI analysis...")
+    # Initialize AI client (Claude or OpenAI)
+    client, client_type = initialize_ai_client()
     
-    print("\n🚀 Tinker is now running with Phase 2.3 capabilities...")
-    print("- 🤖 AI-powered task analysis")
+    print("\n🚀 Tinker is now running with Phase 3.1 capabilities...")
+    print("- 🤖 AI-powered task analysis (Claude Sonnet 4 or GPT-4)")
     print("- 💻 Shell command execution with user approval")
     print("- 📧 Email sending functionality")
     print("- 📋 Detailed task completion reports")
@@ -733,7 +789,7 @@ def main():
     print("Press Ctrl+C to stop\n")
     
     # Initial state update
-    update_state(tinker_folder, "🚀 Tinker Phase 2.3 started - AI shell + email capabilities enabled")
+    update_state(tinker_folder, "🚀 Tinker Phase 3.1 started - Enhanced AI capabilities with Claude Sonnet 4")
     
     try:
         while True:
@@ -747,7 +803,7 @@ def main():
                 
                 # Process each task
                 for task_file in tasks:
-                    success = process_task(task_file, tinker_folder, client)
+                    success = process_task(task_file, tinker_folder, client, client_type)
                     if success:
                         print("   ⏳ Task processing completed...")
                     else:
