@@ -783,27 +783,26 @@ Technical environment:
         
         # Process the response and any tool calls
         while True:
-            # Add Claude's response to messages
-            if response.content:
-                # Find text content
-                text_content = ""
-                for content_block in response.content:
-                    if hasattr(content_block, 'text'):
-                        text_content = content_block.text
-                        break
-                
-                if text_content:
-                    print(f"\n🤖 Claude: {text_content}")
-                    messages.append({
-                        "role": "assistant", 
-                        "content": response.content
-                    })
-            
-            # Check for tool use
+            # Check for tool use first
             tool_calls = []
+            text_content = ""
+            
             for content_block in response.content:
                 if hasattr(content_block, 'type') and content_block.type == 'tool_use':
                     tool_calls.append(content_block)
+                elif hasattr(content_block, 'text'):
+                    text_content = content_block.text
+            
+            # Always add Claude's response to messages (either text or tool calls)
+            if response.content:
+                if text_content:
+                    print(f"\n🤖 Claude: {text_content}")
+                
+                # Add the assistant message with the full content to maintain conversation flow
+                messages.append({
+                    "role": "assistant", 
+                    "content": response.content
+                })
             
             if not tool_calls:
                 break
