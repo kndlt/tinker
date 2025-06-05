@@ -74,7 +74,10 @@ class AnthropicToolsManager:
             import time
             import sys
             
-            # More vibrant gradient colors for better visibility
+            # ASCII spinner characters for CLI-style animation
+            spinner_chars = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
+            
+            # Vibrant gradient colors for the command
             gradient_colors = [
                 "\033[38;5;21m",   # Deep blue
                 "\033[38;5;27m",   # Blue
@@ -86,26 +89,19 @@ class AnthropicToolsManager:
                 "\033[38;5;123m",  # Light purple blue
                 "\033[38;5;159m",  # Very light cyan
                 "\033[38;5;195m",  # Very light blue
-                "\033[38;5;159m",  # Very light cyan (reverse)
-                "\033[38;5;123m",  # Light purple blue (reverse)
-                "\033[38;5;87m",   # Light blue (reverse)
-                "\033[38;5;51m",   # Light cyan (reverse)
-                "\033[38;5;45m",   # Cyan (reverse)
-                "\033[38;5;39m",   # Cyan blue (reverse)
-                "\033[38;5;33m",   # Bright blue (reverse)
-                "\033[38;5;27m",   # Blue (reverse)
             ]
             
-            # More noticeable animation with slower timing
-            print(f"{command}", end="", flush=True)  # Initial display
-            for color in gradient_colors:
-                sys.stdout.write(f"\r{color}{command}\033[0m")
+            # Show spinning animation for about 1.5 seconds
+            cycles = 15  # Number of animation cycles
+            for i in range(cycles):
+                spinner = spinner_chars[i % len(spinner_chars)]
+                color = gradient_colors[i % len(gradient_colors)]
+                sys.stdout.write(f"\r{spinner} {color}{command}\033[0m")
                 sys.stdout.flush()
-                time.sleep(0.15)  # Much slower for visibility
+                time.sleep(0.1)  # Fast spinner
             
-            # Final display with a nice gradient (bright cyan)
-            print(f"\r\033[38;5;51m{command}\033[0m")
-            print()  # Add a newline after the animation
+            # Final display with bright cyan and completion checkmark
+            print(f"\r✓ \033[38;5;51m{command}\033[0m")
             
             result = docker_manager.exec_in_container(["bash", "-c", command])
             
