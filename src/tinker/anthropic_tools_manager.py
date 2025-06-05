@@ -70,35 +70,62 @@ class AnthropicToolsManager:
             return {"success": False, "error": "command is required"}
         
         try:
-            # Create a beautiful gradient effect for the command line
+            # Create a horizontal gradient animation that sweeps through the command text
             import time
             import sys
             
             # ASCII spinner characters for CLI-style animation
             spinner_chars = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
             
-            # Vibrant gradient colors for the command
+            # Beautiful gradient colors from deep blue to bright cyan
             gradient_colors = [
-                "\033[38;5;21m",   # Deep blue
-                "\033[38;5;27m",   # Blue
-                "\033[38;5;33m",   # Bright blue
-                "\033[38;5;39m",   # Cyan blue  
-                "\033[38;5;45m",   # Cyan
+                "\033[38;5;17m",   # Very deep blue
+                "\033[38;5;18m",   # Deep blue
+                "\033[38;5;19m",   # Blue
+                "\033[38;5;20m",   # Bright blue
+                "\033[38;5;21m",   # Cyan blue
+                "\033[38;5;27m",   # Blue cyan
+                "\033[38;5;33m",   # Bright cyan blue
+                "\033[38;5;39m",   # Cyan
+                "\033[38;5;45m",   # Bright cyan
                 "\033[38;5;51m",   # Light cyan
-                "\033[38;5;87m",   # Light blue
-                "\033[38;5;123m",  # Light purple blue
-                "\033[38;5;159m",  # Very light cyan
-                "\033[38;5;195m",  # Very light blue
+                "\033[38;5;87m",   # Very light cyan
+                "\033[38;5;123m",  # Light blue cyan
             ]
             
-            # Show spinning animation for about 1.5 seconds
-            cycles = 15  # Number of animation cycles
+            def create_horizontal_gradient(text, offset, gradient_width=8):
+                """Create a horizontal gradient effect that moves through the text"""
+                colored_text = ""
+                text_len = len(text)
+                
+                for i, char in enumerate(text):
+                    # Calculate position in the gradient wave
+                    wave_pos = (i - offset) % (text_len + gradient_width)
+                    
+                    # Determine color based on position in gradient
+                    if wave_pos < gradient_width:
+                        color_index = int((wave_pos / gradient_width) * (len(gradient_colors) - 1))
+                        color_index = max(0, min(color_index, len(gradient_colors) - 1))
+                        color = gradient_colors[color_index]
+                    else:
+                        # Use a dim color for characters outside the gradient wave
+                        color = "\033[38;5;240m"  # Dim gray
+                    
+                    colored_text += f"{color}{char}"
+                
+                return colored_text + "\033[0m"  # Reset color at the end
+            
+            # Show horizontal gradient animation
+            cycles = 20  # Number of animation cycles
             for i in range(cycles):
                 spinner = spinner_chars[i % len(spinner_chars)]
-                color = gradient_colors[i % len(gradient_colors)]
-                sys.stdout.write(f"\r{spinner}  {color}{command}\033[0m")
+                
+                # Create the horizontal gradient effect
+                gradient_text = create_horizontal_gradient(command, i * 2)
+                
+                sys.stdout.write(f"\r{spinner}  {gradient_text}")
                 sys.stdout.flush()
-                time.sleep(0.1)  # Fast spinner
+                time.sleep(0.08)  # Smooth animation timing
             
             # Final display with bright cyan and completion checkmark
             print(f"\r✓  \033[38;5;51m{command}\033[0m")
