@@ -73,6 +73,8 @@ class AnthropicToolsManager:
             # Create a horizontal gradient animation that sweeps through the command text
             import time
             import sys
+            import threading
+            import subprocess
             
             # ASCII spinner characters for CLI-style animation
             spinner_chars = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
@@ -115,22 +117,34 @@ class AnthropicToolsManager:
                 
                 return colored_text + "\033[0m"  # Reset color at the end
             
-            # Show horizontal gradient animation
-            cycles = 20  # Number of animation cycles
-            for i in range(cycles):
-                spinner = spinner_chars[i % len(spinner_chars)]
-                
-                # Create the horizontal gradient effect
-                gradient_text = create_horizontal_gradient(command, i * 2)
-                
-                sys.stdout.write(f"\r{spinner}  {gradient_text}")
-                sys.stdout.flush()
-                time.sleep(0.08)  # Smooth animation timing
+            # Animation control
+            animation_running = threading.Event()
+            animation_running.set()
+            
+            def animate():
+                """Run the gradient animation until stopped"""
+                cycle = 0
+                while animation_running.is_set():
+                    spinner = spinner_chars[cycle % len(spinner_chars)]
+                    gradient_text = create_horizontal_gradient(command, cycle * 2)
+                    sys.stdout.write(f"\r{spinner}  {gradient_text}")
+                    sys.stdout.flush()
+                    time.sleep(0.08)
+                    cycle += 1
+            
+            # Start animation in background thread
+            animation_thread = threading.Thread(target=animate, daemon=True)
+            animation_thread.start()
+            
+            # Execute the command while animation runs
+            result = docker_manager.exec_in_container(["bash", "-c", command])
+            
+            # Stop animation and show completion
+            animation_running.clear()
+            animation_thread.join(timeout=0.1)  # Brief wait for clean shutdown
             
             # Final display with bright cyan and completion checkmark
             print(f"\r✓  \033[38;5;51m{command}\033[0m")
-            
-            result = docker_manager.exec_in_container(["bash", "-c", command])
             
             return {
                 "success": result.returncode == 0,
