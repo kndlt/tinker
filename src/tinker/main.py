@@ -601,6 +601,13 @@ Guidelines for autonomous operation:
 - Log what you're doing — imagine you're part of a team.
 - Use shell commands for all file operations, text processing, and system tasks
 
+Power management and efficiency:
+- If there's nothing immediate to do, enter a power-saving mode by using `sleep` command
+- When waiting for long-running processes, use appropriate sleep intervals to conserve tokens
+- If you determine the task is complete and no further action is needed, sleep for 10-30 seconds before concluding
+- Use `sleep 5` between checks when monitoring processes or waiting for external conditions
+- Be mindful of token usage - sleep when appropriate rather than making unnecessary API calls
+
 Technical environment:
 - Working directory: /home/tinker (persistent across sessions)
 - Git and GitHub CLI pre-configured
@@ -749,6 +756,13 @@ Guidelines for autonomous operation:
 - When in doubt, create a branch, experiment, and open a draft PR.
 - Log what you're doing — imagine you're part of a team.
 - Use shell commands for all file operations, text processing, and system tasks
+
+Power management and efficiency:
+- If there's nothing immediate to do, enter a power-saving mode by using `sleep` command
+- When waiting for long-running processes, use appropriate sleep intervals to conserve tokens
+- If you determine the task is complete and no further action is needed, sleep for 10-30 seconds before concluding
+- Use `sleep 5` between checks when monitoring processes or waiting for external conditions
+- Be mindful of token usage - sleep when appropriate rather than making unnecessary API calls
 
 Technical environment:
 - Working directory: /home/tinker (persistent across sessions)
