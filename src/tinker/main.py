@@ -809,8 +809,16 @@ Technical environment:
             
             # Always add Claude's response to messages (either text or tool calls)
             if response.content:
-                if text_content:
-                    print(f"\n🤖 Claude: {text_content}")
+                if text_content and tool_calls:
+                    # When there are tool calls, modify the text to include the command
+                    command = tool_calls[0].input.get("command", "") if tool_calls else ""
+                    if command:
+                        # Show the text with "Executing:" and the command at the end
+                        print(f"\n💭 Claude: {text_content} Executing:")
+                    else:
+                        print(f"\n💭 Claude: {text_content}")
+                elif text_content:
+                    print(f"\n💭 Claude: {text_content}")
                 
                 # Add the assistant message with the full content to maintain conversation flow
                 messages.append({
@@ -821,13 +829,10 @@ Technical environment:
             if not tool_calls:
                 break
             
-            print(f"\n🔧 Claude wants to use {len(tool_calls)} tool(s):")
-            
             # Execute tools and prepare tool results
             tool_results_for_api = []
             for tool_call in tool_calls:
                 total_tools_used += 1
-                print(f"  • {tool_call.name}")
                 
                 # Execute the tool
                 result = anthropic_tools_manager.execute_tool(tool_call.name, tool_call.input)

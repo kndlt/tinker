@@ -70,8 +70,42 @@ class AnthropicToolsManager:
             return {"success": False, "error": "command is required"}
         
         try:
-            print(f"🔧 Executing: {command}")
-            print(f"   Reason: {reason}")
+            # Create a beautiful gradient effect for the command line
+            import time
+            import sys
+            
+            # More vibrant gradient colors for better visibility
+            gradient_colors = [
+                "\033[38;5;21m",   # Deep blue
+                "\033[38;5;27m",   # Blue
+                "\033[38;5;33m",   # Bright blue
+                "\033[38;5;39m",   # Cyan blue  
+                "\033[38;5;45m",   # Cyan
+                "\033[38;5;51m",   # Light cyan
+                "\033[38;5;87m",   # Light blue
+                "\033[38;5;123m",  # Light purple blue
+                "\033[38;5;159m",  # Very light cyan
+                "\033[38;5;195m",  # Very light blue
+                "\033[38;5;159m",  # Very light cyan (reverse)
+                "\033[38;5;123m",  # Light purple blue (reverse)
+                "\033[38;5;87m",   # Light blue (reverse)
+                "\033[38;5;51m",   # Light cyan (reverse)
+                "\033[38;5;45m",   # Cyan (reverse)
+                "\033[38;5;39m",   # Cyan blue (reverse)
+                "\033[38;5;33m",   # Bright blue (reverse)
+                "\033[38;5;27m",   # Blue (reverse)
+            ]
+            
+            # More noticeable animation with slower timing
+            print(f"{command}", end="", flush=True)  # Initial display
+            for color in gradient_colors:
+                sys.stdout.write(f"\r{color}{command}\033[0m")
+                sys.stdout.flush()
+                time.sleep(0.15)  # Much slower for visibility
+            
+            # Final display with a nice gradient (bright cyan)
+            print(f"\r\033[38;5;51m{command}\033[0m")
+            print()  # Add a newline after the animation
             
             result = docker_manager.exec_in_container(["bash", "-c", command])
             
