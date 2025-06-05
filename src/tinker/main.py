@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 from . import docker_manager
 from .email_manager import send_email_from_task
 from . import github_manager
+from .tools_manager import ToolsManager
 
 def is_process_running(pid):
     """Check if a process with given PID is running."""
@@ -155,7 +156,7 @@ def scan_for_tasks(tinker_folder):
     task_files = list(tasks_folder.glob("*.md"))
     return task_files
 
-def process_task(task_file, tinker_folder, client=None):
+def process_task(task_file, tinker_folder, client=None, is_single_task=False):
     """Process a single task file through the workflow."""
     task_name = task_file.name
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -167,10 +168,15 @@ def process_task(task_file, tinker_folder, client=None):
         # Update state
         update_state(tinker_folder, f"🔄 Processing task: {task_name}")
         
-        # Move to ongoing folder
-        ongoing_folder = tinker_folder / "ongoing"
-        ongoing_file = ongoing_folder / task_name
-        shutil.move(str(task_file), str(ongoing_file))
+        # Move to ongoing folder (only if not processing a single task from external location)
+        if not is_single_task:
+            ongoing_folder = tinker_folder / "ongoing"
+            ongoing_folder.mkdir(exist_ok=True)
+            ongoing_file = ongoing_folder / task_name
+            shutil.move(str(task_file), str(ongoing_file))
+        else:
+            # For single tasks, use the original file path
+            ongoing_file = task_file
         
         print(f"📋 Processing task: {task_name}")
         print(f"📄 Task content preview:")
@@ -182,61 +188,92 @@ def process_task(task_file, tinker_folder, client=None):
         if len(task_content.strip().split('\n')) > 5:
             print("   ...")
         
-        # Phase 1.3: Analyze task with AI to determine if shell commands are needed
-        update_state(tinker_folder, f"🤖 Analyzing task with AI: {task_name}")
+        # Initialize ai_analysis to None
+        ai_analysis = None
+        tools_result = None
         
-        ai_analysis = analyze_task_with_ai(task_content, client)
+        # Phase 3.1: Use OpenAI Function Calling Tools
+        if client:
+            print(f"\n🚀 Phase 3.1: Processing with AI tools...")
+            update_state(tinker_folder, f"🛠️  Processing task with AI tools: {task_name}")
+            
+            tools_manager = ToolsManager()
+            tools_result = process_task_with_tools(task_content, client, tools_manager)
+            
+            if tools_result and tools_result.get("success"):
+                task_result = {
+                    "completed": True,
+                    "tools_used": tools_result.get("tools_used", 0),
+                    "tool_results": tools_result.get("tool_results", []),
+                    "ai_response": tools_result.get("final_response", ""),
+                    "errors": [],
+                    "commands_executed": [],
+                    "emails_sent": []
+                }
+                print(f"✅ Task completed using {task_result['tools_used']} tool calls")
+            else:
+                print(f"⚠️  Tools processing failed, falling back to legacy mode...")
+                task_result = {"completed": False, "commands_executed": [], "errors": [], "emails_sent": []}
+                if tools_result:
+                    task_result["errors"].append(tools_result.get("error", "Tools processing failed"))
+                # Fall back to Phase 2.x approach
+                ai_analysis = analyze_task_with_ai(task_content, client)
+        else:
+            # No AI client, fall back to Phase 2.x approach
+            print(f"\n🤖 No AI client available, using legacy analysis...")
+            ai_analysis = analyze_task_with_ai(task_content, client)
+            task_result = {"completed": False, "commands_executed": [], "errors": [], "emails_sent": []}
         
-        task_result = {"completed": False, "commands_executed": [], "errors": [], "emails_sent": []}
-        
-        # Check if this is an email task
-        if ai_analysis and ai_analysis.get("is_email", False):
-            print(f"\n📧 AI Analysis: This is an email task")
-            print(f"💭 Reasoning: {ai_analysis.get('reasoning', 'No reasoning provided')}")
-            
-            update_state(tinker_folder, f"📧 Processing email task: {task_name}")
-            
-            # Ask user for approval before sending email
-            print(f"\n📧 Tinker wants to send an email:")
-            print(f"📋 Task: {task_name}")
-            print(f"📄 Email content preview:")
-            
-            # Show email content preview
-            lines = task_content.strip().split('\n')
-            for line in lines[:10]:  # Show more lines for email preview
-                if line.strip():
-                    print(f"   {line}")
-            if len(lines) > 10:
-                print("   ...")
-            
-            print(f"\n⚠️  This will send a real email.")
-            
-            while True:
-                response = input("Do you approve sending this email? [y/N]: ").strip().lower()
+        # Legacy Phase 2.x processing (only if tools failed or no AI client)
+        if not client or not tools_result or not tools_result.get("success"):
+            # Check if this is an email task
+            if ai_analysis and ai_analysis.get("is_email", False):
+                print(f"\n📧 AI Analysis: This is an email task")
+                print(f"💭 Reasoning: {ai_analysis.get('reasoning', 'No reasoning provided')}")
                 
-                if response in ['y', 'yes']:
-                    print("📧 Sending email...")
-                    email_result = send_email_from_task(task_content)
+                update_state(tinker_folder, f"📧 Processing email task: {task_name}")
+                
+                # Ask user for approval before sending email
+                print(f"\n📧 Tinker wants to send an email:")
+                print(f"📋 Task: {task_name}")
+                print(f"📄 Email content preview:")
+                
+                # Show email content preview
+                lines = task_content.strip().split('\n')
+                for line in lines[:10]:  # Show more lines for email preview
+                    if line.strip():
+                        print(f"   {line}")
+                if len(lines) > 10:
+                    print("   ...")
+                
+                print(f"\n⚠️  This will send a real email.")
+                
+                while True:
+                    response = input("Do you approve sending this email? [y/N]: ").strip().lower()
                     
-                    task_result["emails_sent"].append(email_result)
-                    
-                    if email_result["success"]:
-                        print(f"✅ Email sent successfully to {email_result.get('to', 'recipient')}")
-                        update_state(tinker_folder, f"📧 ✅ Email sent to {email_result.get('to', 'recipient')}")
-                        task_result["completed"] = True
-                    else:
-                        print(f"❌ Email failed: {email_result.get('error', 'Unknown error')}")
-                        update_state(tinker_folder, f"📧 ❌ Email failed: {email_result.get('error', 'Unknown error')}")
-                        task_result["errors"].append(email_result.get('error', 'Email sending failed'))
+                    if response in ['y', 'yes']:
+                        print("📧 Sending email...")
+                        email_result = send_email_from_task(task_content)
+                        
+                        task_result["emails_sent"].append(email_result)
+                        
+                        if email_result["success"]:
+                            print(f"✅ Email sent successfully to {email_result.get('to', 'recipient')}")
+                            update_state(tinker_folder, f"📧 ✅ Email sent to {email_result.get('to', 'recipient')}")
+                            task_result["completed"] = True
+                        else:
+                            print(f"❌ Email failed: {email_result.get('error', 'Unknown error')}")
+                            update_state(tinker_folder, f"📧 ❌ Email failed: {email_result.get('error', 'Unknown error')}")
+                            task_result["errors"].append(email_result.get('error', 'Email sending failed'))
+                            task_result["completed"] = False
+                        break
+                    elif response in ['n', 'no', '']:
+                        print("❌ Email sending rejected by user")
+                        task_result["errors"].append("Email sending rejected by user")
                         task_result["completed"] = False
-                    break
-                elif response in ['n', 'no', '']:
-                    print("❌ Email sending rejected by user")
-                    task_result["errors"].append("Email sending rejected by user")
-                    task_result["completed"] = False
-                    break
-                else:
-                    print("Please enter 'y' for yes or 'n' for no")
+                        break
+                    else:
+                        print("Please enter 'y' for yes or 'n' for no")
         
         elif ai_analysis and ai_analysis.get("needs_shell", False):
             print(f"\n🤖 AI Analysis: This task requires shell commands")
@@ -278,75 +315,11 @@ def process_task(task_file, tinker_folder, client=None):
                             print(f"❌ Command failed (exit code: {result.get('returncode', 'unknown')})")
                             task_result["errors"].append(result["stderr"])
                             
-                            # Phase 2.7: Analyze the error and suggest fixes
-                            print("🔍 Analyzing error...")
-                            error_analysis = analyze_command_result(
-                                final_command, 
-                                result["stdout"], 
-                                result["stderr"], 
-                                result["returncode"], 
-                                client
-                            )
-                            
-                            if error_analysis and error_analysis.get("is_recoverable", False):
-                                print(f"\n🤖 AI Analysis: {error_analysis.get('explanation', 'Unknown error')}")
-                                suggested_fix = error_analysis.get("suggested_fix")
-                                confidence = error_analysis.get("confidence", 0.0)
-                                
-                                if suggested_fix and suggested_fix != "manual_intervention":
-                                    print(f"💡 Suggested fix (confidence: {confidence:.1f}): {suggested_fix}")
-                                    print("\nOptions:")
-                                    print("  r) Retry with suggested fix")
-                                    print("  s) Skip this command")
-                                    print("  a) Abort task")
-                                    
-                                    while True:
-                                        choice = input("Choose [r/s/a]: ").strip().lower()
-                                        if choice == 'r':
-                                            print(f"🔄 Retrying with: {suggested_fix}")
-                                            retry_result = execute_shell_command(suggested_fix)
-                                            if retry_result["success"]:
-                                                print("✅ Fix succeeded!")
-                                                task_result["commands_executed"].append({
-                                                    "command": suggested_fix,
-                                                    "success": True,
-                                                    "output": retry_result["stdout"][:500],
-                                                    "error": None
-                                                })
-                                                break
-                                            else:
-                                                print("❌ Fix also failed")
-                                                print("Options: s) Skip this command, a) Abort task")
-                                                choice = input("Choose [s/a]: ").strip().lower()
-                                                if choice == 'a':
-                                                    print("🛑 Task execution aborted by user")
-                                                    break
-                                                else:
-                                                    print("⏭️ Skipping command")
-                                                    break
-                                        elif choice == 's':
-                                            print("⏭️ Skipping command")
-                                            break
-                                        elif choice == 'a':
-                                            print("🛑 Task execution aborted by user")
-                                            break
-                                        else:
-                                            print("Please enter 'r', 's', or 'a'")
-                                    
-                                    if choice == 'a':
-                                        break
-                                else:
-                                    print("🔧 Manual intervention needed")
-                                    continue_choice = input("Continue with remaining commands? [y/N]: ").strip().lower()
-                                    if continue_choice not in ['y', 'yes']:
-                                        print("🛑 Task execution aborted by user")
-                                        break
-                            else:
-                                # Fallback to original behavior
-                                continue_choice = input("Command failed. Continue with remaining commands? [y/N]: ").strip().lower()
-                                if continue_choice not in ['y', 'yes']:
-                                    print("🛑 Task execution aborted by user")
-                                    break
+                            # Ask user if they want to continue or abort
+                            continue_choice = input("Command failed. Continue with remaining commands? [y/N]: ").strip().lower()
+                            if continue_choice not in ['y', 'yes']:
+                                print("🛑 Task execution aborted by user")
+                                break
                     else:
                         print(f"⏭️  Skipping command {i}")
                         task_result["errors"].append(f"Command {i} rejected by user")
@@ -406,21 +379,30 @@ def process_task(task_file, tinker_folder, client=None):
             for error in task_result["errors"]:
                 completion_report += f"- {error}\n"
         
-        # Write the completion report to the ongoing file
-        ongoing_file.write_text(completion_report)
-        
-        # Move to done folder with timestamp
-        done_folder = tinker_folder / "done"
-        done_filename = f"{timestamp}_{task_name}"
-        done_file = done_folder / done_filename
-        shutil.move(str(ongoing_file), str(done_file))
-        
-        # Update state
-        status_emoji = "✅" if task_result["completed"] else "⚠️"
-        update_state(tinker_folder, f"{status_emoji} Completed task: {task_name} → {done_filename}")
-        
-        print(f"\n{status_emoji} Task completed: {task_name}")
-        print(f"📁 Moved to: done/{done_filename}")
+        # Write the completion report and handle file operations
+        if not is_single_task:
+            # For normal workflow: write to ongoing file and move to done folder
+            ongoing_file.write_text(completion_report)
+            
+            # Move to done folder with timestamp
+            done_folder = tinker_folder / "done"
+            done_folder.mkdir(exist_ok=True)
+            done_filename = f"{timestamp}_{task_name}"
+            done_file = done_folder / done_filename
+            shutil.move(str(ongoing_file), str(done_file))
+            
+            # Update state
+            status_emoji = "✅" if task_result["completed"] else "⚠️"
+            update_state(tinker_folder, f"{status_emoji} Completed task: {task_name} → {done_filename}")
+            
+            print(f"\n{status_emoji} Task completed: {task_name}")
+            print(f"📁 Moved to: done/{done_filename}")
+        else:
+            # For single task processing: just display the completion report
+            status_emoji = "✅" if task_result["completed"] else "⚠️"
+            print(f"\n{status_emoji} Task completed: {task_name}")
+            print("\n📊 Task Completion Report:")
+            print(completion_report)
         
         return task_result["completed"]
         
@@ -544,59 +526,146 @@ Examples of other tasks:
         print(f"⚠️  AI analysis failed: {e}")
         return None
 
-def analyze_command_result(command, stdout, stderr, returncode, client=None):
-    """Analyze a failed command result and suggest fixes."""
-    if not client or returncode == 0:
+def process_task_with_tools(task_content, client, tools_manager):
+    """Process a task using OpenAI function calling tools"""
+    if not client or not tools_manager:
         return None
     
     try:
-        prompt = f"""You are Tinker, an AI assistant helping debug failed shell commands.
+        # Create the system prompt for Tinker
+        system_prompt = """You are Tinker, an autonomous AI agent that helps with development tasks.
 
-A command failed and I need your help to understand what went wrong and suggest a fix.
+You have access to tools that allow you to:
+- Execute shell commands in a Docker container
+- Read and write files
+- List directory contents
+- Send emails
+- Get current working directory
 
-Command that failed: {command}
-Exit code: {returncode}
-STDOUT: {stdout}
-STDERR: {stderr}
+When given a task, analyze what needs to be done and use the appropriate tools to complete it.
+Be methodical and break down complex tasks into smaller steps.
+Always explain what you're doing and why.
 
-Please analyze this failure and respond with a JSON object containing:
-- "error_type": string (category like "missing_package", "permission_error", "network_error", "file_not_found", "syntax_error", "unknown")
-- "explanation": string (clear explanation of what went wrong)
-- "suggested_fix": string (a specific command to fix the issue, or "manual_intervention" if human help is needed)
-- "is_recoverable": boolean (true if this can likely be fixed automatically)
-- "confidence": number (0.0-1.0, how confident you are in the diagnosis)
+The container is a Linux environment with common development tools installed.
+Your working directory is /home/tinker which is the user's workspace.
 
-Common error patterns to look for:
-- Missing packages/dependencies (pip install, apt install, npm install, etc.)
-- Permission errors (chmod, sudo, file ownership)
-- Network connectivity issues
-- File/directory not found
-- Syntax errors in commands
-- Environment/PATH issues
+Safety notes:
+- Be careful with destructive commands
+- Always check if files/directories exist before operating on them
+- Use relative paths when possible
+- Provide clear explanations for your actions"""
 
-Focus on practical, specific fixes when possible."""
-
+        # Get tools definition
+        tools = tools_manager.get_tools()
+        
+        # Make the initial API call
         response = client.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": "You are a helpful AI assistant that analyzes command failures and suggests fixes. Always respond with valid JSON."},
-                {"role": "user", "content": prompt}
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"Please complete this task:\n\n{task_content}"}
             ],
-            max_tokens=800,
+            tools=tools,
+            tool_choice="auto",
+            max_tokens=4000,
             temperature=0.3
         )
         
-        result = json.loads(response.choices[0].message.content)
-        return result
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Please complete this task:\n\n{task_content}"},
+            {"role": "assistant", "content": response.choices[0].message.content, "tool_calls": response.choices[0].message.tool_calls}
+        ]
+        
+        # Track results for reporting
+        tool_results = []
+        total_tools_used = 0
+        
+        # Process tool calls
+        while response.choices[0].message.tool_calls:
+            print(f"\n🔧 AI wants to use {len(response.choices[0].message.tool_calls)} tool(s):")
+            
+            for tool_call in response.choices[0].message.tool_calls:
+                total_tools_used += 1
+                print(f"  • {tool_call.function.name}")
+                
+                # Execute the tool
+                result = tools_manager.execute_tool(tool_call)
+                tool_results.append({
+                    "tool_call": tool_call,
+                    "result": result
+                })
+                
+                # Add tool result to messages
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": json.dumps(result)
+                })
+            
+            # Get next response from AI
+            try:
+                response = client.chat.completions.create(
+                    model="gpt-4",
+                    messages=messages,
+                    tools=tools,
+                    tool_choice="auto",
+                    max_tokens=4000,
+                    temperature=0.3
+                )
+                
+                # Add the AI's response to messages
+                if response.choices[0].message.content:
+                    print(f"\n🤖 AI: {response.choices[0].message.content}")
+                
+                if response.choices[0].message.tool_calls:
+                    messages.append({
+                        "role": "assistant", 
+                        "content": response.choices[0].message.content,
+                        "tool_calls": response.choices[0].message.tool_calls
+                    })
+                else:
+                    messages.append({
+                        "role": "assistant",
+                        "content": response.choices[0].message.content
+                    })
+                    break
+                    
+            except Exception as e:
+                print(f"⚠️  Error getting AI response: {e}")
+                break
+        
+        # Final response from AI
+        if response.choices[0].message.content:
+            print(f"\n🎯 Task completed. AI summary:")
+            print(f"   {response.choices[0].message.content}")
+        
+        return {
+            "success": True,
+            "tools_used": total_tools_used,
+            "tool_results": tool_results,
+            "final_response": response.choices[0].message.content,
+            "messages": messages
+        }
         
     except Exception as e:
-        print(f"⚠️  Error analysis failed: {e}")
-        return None
+        print(f"⚠️  Error processing task with tools: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "tools_used": 0,
+            "tool_results": []
+        }
 
 def main():
     """Main Tinker CLI"""
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Tinker - Autonomous AI Agent')
+    
+    # Positional argument for task file
+    parser.add_argument('task_file', nargs='?', 
+                       help='Path to a specific task file to process')
+    
     parser.add_argument('--ssh-status', action='store_true', 
                        help='Check GitHub SSH authentication status')
     parser.add_argument('--ssh-setup', action='store_true', 
@@ -683,6 +752,46 @@ def main():
             github_manager.search_github_issues(repo, query, args.issue_state, args.issue_limit)
         except Exception as e:
             print(f"❌ Failed to search issues: {e}")
+        return
+    
+    # Handle single task file processing
+    if args.task_file:
+        task_path = Path(args.task_file)
+        if not task_path.exists():
+            print(f"❌ Task file not found: {args.task_file}")
+            return
+        
+        print(f"🎯 Processing single task: {task_path.name}")
+        
+        # Start Docker container
+        try:
+            docker_manager.start_container()
+            print("[Tinker] Docker sandbox is ready.")
+        except Exception as e:
+            print(f"[Tinker] Failed to start Docker sandbox: {e}")
+            print("[Tinker] Exiting for safety.")
+            return
+        
+        # Load environment and setup AI client
+        load_dotenv()
+        client = None
+        if os.getenv("OPENAI_API_KEY"):
+            client = OpenAI()
+            print("🤖 OpenAI client initialized")
+        else:
+            print("⚠️  No OpenAI API key found - running without AI analysis")
+        
+        # Process the single task
+        tinker_folder = Path.home() / ".tinker"
+        tinker_folder.mkdir(exist_ok=True)
+        tasks_folder = tinker_folder / "tasks"
+        tasks_folder.mkdir(exist_ok=True)
+        
+        success = process_task(task_path, tinker_folder, client, is_single_task=True)
+        if success:
+            print("✅ Task processing completed successfully")
+        else:
+            print("⚠️  Task completed with issues")
         return
     
     # Start or reuse the persistent Docker container
