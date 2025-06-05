@@ -709,7 +709,7 @@ Safety notes:
         
         # Make the initial API call
         response = anthropic_client.messages.create(
-            model="claude-3-5-sonnet-20241022",
+            model="claude-sonnet-4-20250514",
             max_tokens=4000,
             temperature=0.3,
             system=system_prompt,
@@ -787,7 +787,7 @@ Safety notes:
             # Get next response from Claude
             try:
                 response = anthropic_client.messages.create(
-                    model="claude-3-5-sonnet-20241022",
+                    model="claude-sonnet-4-20250514",
                     max_tokens=4000,
                     temperature=0.3,
                     system=system_prompt,
