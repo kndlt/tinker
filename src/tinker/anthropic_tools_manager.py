@@ -95,6 +95,32 @@ class AnthropicToolsManager:
                 "\033[38;5;123m",  # Light blue cyan
             ]
             
+            # Get terminal width for proper line handling
+            try:
+                import shutil
+                terminal_width = shutil.get_terminal_size().columns
+            except:
+                terminal_width = 80  # Fallback width
+            
+            # Process command for display - handle multi-line and long commands
+            def prepare_command_for_display(cmd, terminal_width):
+                """Prepare command for display, handling multi-line and length issues"""
+                # Replace newlines with spaces for single-line display
+                display_cmd = cmd.replace('\n', ' ').replace('\r', ' ')
+                # Collapse multiple spaces
+                display_cmd = ' '.join(display_cmd.split())
+                
+                # Calculate available width: terminal width minus spinner (3 chars) and checkmark space
+                available_width = terminal_width - 10  # Leave some buffer for spinner, checkmark, and margins
+                
+                # Truncate if too long to prevent terminal wrapping
+                if len(display_cmd) > available_width:
+                    display_cmd = display_cmd[:available_width-3] + "..."
+                return display_cmd
+            
+            # Prepare the command for animation display
+            display_command = prepare_command_for_display(command, terminal_width)
+            
             def create_horizontal_gradient(text, offset, gradient_width=8):
                 """Create a horizontal gradient effect that moves through the text"""
                 colored_text = ""
@@ -126,7 +152,9 @@ class AnthropicToolsManager:
                 cycle = 0
                 while animation_running.is_set():
                     spinner = spinner_chars[cycle % len(spinner_chars)]
-                    gradient_text = create_horizontal_gradient(command, cycle * 2)
+                    gradient_text = create_horizontal_gradient(display_command, cycle * 2)
+                    
+                    # Use carriage return to overwrite the line
                     sys.stdout.write(f"\r{spinner}  {gradient_text}")
                     sys.stdout.flush()
                     time.sleep(0.08)
@@ -144,7 +172,7 @@ class AnthropicToolsManager:
             animation_thread.join(timeout=0.1)  # Brief wait for clean shutdown
             
             # Final display with bright cyan and completion checkmark
-            print(f"\r✓  \033[38;5;51m{command}\033[0m")
+            print(f"\r✓  \033[38;5;51m{display_command}\033[0m")
             
             return {
                 "success": result.returncode == 0,
