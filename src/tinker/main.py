@@ -11,11 +11,13 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 from openai import OpenAI
+import anthropic
 from dotenv import load_dotenv
 from . import docker_manager
 from .email_manager import send_email_from_task
 from . import github_manager
 from .tools_manager import ToolsManager
+from .anthropic_tools_manager import AnthropicToolsManager
 
 def is_process_running(pid):
     """Check if a process with given PID is running."""
@@ -192,15 +194,24 @@ def process_task(task_file, tinker_folder, client=None, is_single_task=False):
         ai_analysis = None
         tools_result = None
         
-        # Phase 3.1: Use OpenAI Function Calling Tools
+        # Phase 3.2: Try Anthropic tools first, then fallback to OpenAI tools
         if client:
-            print(f"\n🚀 Phase 3.1: Processing with AI tools...")
-            update_state(tinker_folder, f"🛠️  Processing task with AI tools: {task_name}")
-            
-            tools_manager = ToolsManager()
-            tools_result = process_task_with_tools(task_content, client, tools_manager)
+            # Check if this is an Anthropic client
+            if hasattr(client, 'messages'):
+                print(f"\n🚀 Phase 3.2: Processing with Anthropic Claude tools...")
+                update_state(tinker_folder, f"🤖 Processing task with Claude: {task_name}")
+                
+                anthropic_tools_manager = AnthropicToolsManager()
+                tools_result = process_task_with_anthropic_tools(task_content, client, anthropic_tools_manager)
+            else:
+                print(f"\n🚀 Phase 3.1: Processing with OpenAI tools...")
+                update_state(tinker_folder, f"🛠️  Processing task with OpenAI tools: {task_name}")
+                
+                tools_manager = ToolsManager()
+                tools_result = process_task_with_tools(task_content, client, tools_manager)
             
             if tools_result and tools_result.get("success"):
+                agent_name = tools_result.get("agent", "AI")
                 task_result = {
                     "completed": True,
                     "tools_used": tools_result.get("tools_used", 0),
@@ -208,9 +219,10 @@ def process_task(task_file, tinker_folder, client=None, is_single_task=False):
                     "ai_response": tools_result.get("final_response", ""),
                     "errors": [],
                     "commands_executed": [],
-                    "emails_sent": []
+                    "emails_sent": [],
+                    "agent": agent_name
                 }
-                print(f"✅ Task completed using {task_result['tools_used']} tool calls")
+                print(f"✅ Task completed using {task_result['tools_used']} tool calls with {agent_name}")
             else:
                 print(f"⚠️  Tools processing failed, falling back to legacy mode...")
                 task_result = {"completed": False, "commands_executed": [], "errors": [], "emails_sent": []}
@@ -335,11 +347,13 @@ def process_task(task_file, tinker_folder, client=None, is_single_task=False):
             task_result["completed"] = True
         
         # Create a detailed completion report
+        agent_info = task_result.get("agent", "legacy")
         completion_report = f"""# Task Completion Report
 
 **Task:** {task_name}
 **Timestamp:** {timestamp}
 **Status:** {'✅ Completed' if task_result['completed'] else '⚠️ Completed with errors'}
+**Agent:** {agent_info}
 
 ## Original Task Content
 {task_content}
@@ -348,6 +362,7 @@ def process_task(task_file, tinker_folder, client=None, is_single_task=False):
 - Commands executed: {len(task_result['commands_executed'])}
 - Emails sent: {len(task_result['emails_sent'])}
 - Errors encountered: {len(task_result['errors'])}
+- Tools used: {task_result.get('tools_used', 0)}
 
 """
         
@@ -657,225 +672,322 @@ Safety notes:
             "tool_results": []
         }
 
+
+def process_task_with_anthropic_tools(task_content, anthropic_client, anthropic_tools_manager):
+    """Process a task using Anthropic Claude tool calling"""
+    if not anthropic_client or not anthropic_tools_manager:
+        return None
+    
+    try:
+        # Create the system prompt for Tinker with Claude
+        system_prompt = """You are Tinker, an autonomous AI agent that helps with development tasks.
+
+You have access to tools that allow you to:
+- Execute shell commands in a Docker container
+- Read and write files
+- List directory contents
+- Send emails
+- Get current working directory
+
+When given a task, analyze what needs to be done and use the appropriate tools to complete it.
+Be methodical and break down complex tasks into smaller steps.
+Always explain what you're doing and why.
+
+The container is a Linux environment with common development tools installed.
+Your working directory is /home/tinker which is the user's workspace.
+
+Safety notes:
+- Be careful with destructive commands
+- Always check if files/directories exist before operating on them
+- Use relative paths when possible
+- Provide clear explanations for your actions"""
+
+        # Get tools definition
+        tools = anthropic_tools_manager.get_tools()
+        
+        print(f"\n🤖 Claude analyzing task with {len(tools)} available tools...")
+        
+        # Make the initial API call
+        response = anthropic_client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=4000,
+            temperature=0.3,
+            system=system_prompt,
+            tools=tools,
+            messages=[
+                {"role": "user", "content": f"Please complete this task:\n\n{task_content}"}
+            ]
+        )
+        
+        messages = [
+            {"role": "user", "content": f"Please complete this task:\n\n{task_content}"}
+        ]
+        
+        # Track results for reporting
+        tool_results = []
+        total_tools_used = 0
+        
+        # Process the response and any tool calls
+        while True:
+            # Add Claude's response to messages
+            if response.content:
+                # Find text content
+                text_content = ""
+                for content_block in response.content:
+                    if hasattr(content_block, 'text'):
+                        text_content = content_block.text
+                        break
+                
+                if text_content:
+                    print(f"\n🤖 Claude: {text_content}")
+                    messages.append({
+                        "role": "assistant", 
+                        "content": response.content
+                    })
+            
+            # Check for tool use
+            tool_calls = []
+            for content_block in response.content:
+                if hasattr(content_block, 'type') and content_block.type == 'tool_use':
+                    tool_calls.append(content_block)
+            
+            if not tool_calls:
+                break
+            
+            print(f"\n🔧 Claude wants to use {len(tool_calls)} tool(s):")
+            
+            # Execute tools and prepare tool results
+            tool_results_for_api = []
+            for tool_call in tool_calls:
+                total_tools_used += 1
+                print(f"  • {tool_call.name}")
+                
+                # Execute the tool
+                result = anthropic_tools_manager.execute_tool(tool_call.name, tool_call.input)
+                tool_results.append({
+                    "tool_call": tool_call,
+                    "result": result
+                })
+                
+                # Add tool result in Anthropic format
+                tool_results_for_api.append({
+                    "type": "tool_result",
+                    "tool_use_id": tool_call.id,
+                    "content": json.dumps(result) if result else ""
+                })
+            
+            # Add tool results message with proper content structure for Anthropic
+            # Anthropic expects content to be a list when using tool results
+            tool_results_message = {
+                "role": "user",
+                "content": tool_results_for_api
+            }
+            messages.append(tool_results_message)  # type: ignore
+            
+            # Get next response from Claude
+            try:
+                response = anthropic_client.messages.create(
+                    model="claude-sonnet-4-20250514",
+                    max_tokens=4000,
+                    temperature=0.3,
+                    system=system_prompt,
+                    tools=tools,
+                    messages=messages
+                )
+                    
+            except Exception as e:
+                print(f"⚠️  Error getting Claude response: {e}")
+                break
+        
+        # Final response from Claude
+        final_text = ""
+        if response.content:
+            for content_block in response.content:
+                if hasattr(content_block, 'text'):
+                    final_text = content_block.text
+                    break
+        
+        if final_text:
+            print(f"\n🎯 Task completed. Claude summary:")
+            print(f"   {final_text}")
+        
+        return {
+            "success": True,
+            "tools_used": total_tools_used,
+            "tool_results": tool_results,
+            "final_response": final_text,
+            "messages": messages,
+            "agent": "anthropic"
+        }
+        
+    except Exception as e:
+        print(f"⚠️  Error processing task with Claude: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "tools_used": 0,
+            "tool_results": [],
+            "agent": "anthropic"
+        }
+
 def main():
-    """Main Tinker CLI"""
+    """Main entry point for Tinker CLI"""
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Tinker - Autonomous AI Agent')
-    
-    # Positional argument for task file
-    parser.add_argument('task_file', nargs='?', 
-                       help='Path to a specific task file to process')
-    
-    parser.add_argument('--ssh-status', action='store_true', 
-                       help='Check GitHub SSH authentication status')
-    parser.add_argument('--ssh-setup', action='store_true', 
-                       help='Setup/reset GitHub SSH authentication')
-    parser.add_argument('--ssh-reset', action='store_true', 
-                       help='Reset and regenerate SSH keys')
-    
-    # GitHub CLI arguments
-    parser.add_argument('--github-status', action='store_true', 
-                       help='Check GitHub CLI authentication status')
-    parser.add_argument('--github-setup', action='store_true', 
-                       help='Setup GitHub CLI authentication')
-    parser.add_argument('--github-issues', metavar='REPO', 
-                       help='List GitHub issues for a repository (format: owner/repo)')
-    parser.add_argument('--github-issue', nargs=2, metavar=('REPO', 'NUMBER'),
-                       help='Get specific GitHub issue (format: owner/repo issue_number)')
-    parser.add_argument('--github-search', nargs=2, metavar=('REPO', 'QUERY'),
-                       help='Search GitHub issues (format: owner/repo "search query")')
-    parser.add_argument('--issue-state', choices=['open', 'closed', 'all'], default='open',
-                       help='Issue state to filter by (default: open)')
-    parser.add_argument('--issue-limit', type=int, default=10,
-                       help='Maximum number of issues to return (default: 10)')
+    parser = argparse.ArgumentParser(description="Tinker - AI Agent Task Runner")
+    parser.add_argument("--single-task", help="Path to a single task file to process")
+    parser.add_argument("--ssh-status", action="store_true", help="Check GitHub SSH status")
+    parser.add_argument("--ssh-setup", action="store_true", help="Setup GitHub SSH authentication")  
+    parser.add_argument("--ssh-reset", action="store_true", help="Reset GitHub SSH keys")
+    parser.add_argument("--github-status", action="store_true", help="Check GitHub CLI authentication")
+    parser.add_argument("--github-setup", action="store_true", help="Setup GitHub CLI authentication")
+    parser.add_argument("--github-issues", help="List GitHub issues for repository (format: owner/repo)")
+    parser.add_argument("--github-issue", help="Get specific GitHub issue (format: owner/repo:number)")
+    parser.add_argument("--github-search", help="Search GitHub issues (format: owner/repo query)")
+    parser.add_argument("--issue-state", default="open", choices=["open", "closed", "all"], help="Issue state filter")
+    parser.add_argument("--issue-limit", type=int, default=10, help="Maximum number of issues to return")
     
     args = parser.parse_args()
     
-    # Handle SSH-related commands
-    if args.ssh_status:
-        print("🔍 Checking GitHub SSH Status...")
-        docker_manager.ssh_status()
+    # Load environment variables
+    load_dotenv()
+    
+    # Initialize AI clients with priority: Anthropic first, then OpenAI
+    anthropic_client = None
+    openai_client = None
+    agent_type = None
+    
+    # Try Anthropic first
+    anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+    if anthropic_api_key:
+        try:
+            anthropic_client = anthropic.Anthropic(api_key=anthropic_api_key)
+            agent_type = "anthropic"
+            print("🤖 Phase 3.2: Using Anthropic Claude as primary AI agent")
+        except Exception as e:
+            print(f"⚠️  Failed to initialize Anthropic client: {e}")
+    
+    # Fallback to OpenAI
+    if not anthropic_client:
+        openai_api_key = os.getenv("OPENAI_API_KEY") 
+        if openai_api_key:
+            try:
+                openai_client = OpenAI(api_key=openai_api_key)
+                agent_type = "openai"
+                print("🤖 Phase 3.1: Using OpenAI GPT as AI agent (Anthropic not available)")
+            except Exception as e:
+                print(f"⚠️  Failed to initialize OpenAI client: {e}")
+    
+    if not anthropic_client and not openai_client:
+        print("❌ No AI client available. Please set ANTHROPIC_API_KEY or OPENAI_API_KEY in your .env file")
         return
     
-    if args.ssh_setup or args.ssh_reset:
-        print("🔧 Setting up GitHub SSH Authentication...")
-        try:
-            docker_manager.start_container()
-            if args.ssh_reset:
-                docker_manager.ssh_reset()
-            else:
-                docker_manager.ensure_github_ssh()
-        except Exception as e:
-            print(f"❌ Failed to setup SSH: {e}")
+    # Handle SSH management commands
+    if args.ssh_status:
+        docker_manager.check_ssh_status()
+        return
+    elif args.ssh_setup:
+        docker_manager.start_container()
+        docker_manager.ensure_github_ssh()
+        return
+    elif args.ssh_reset:
+        docker_manager.start_container()
+        docker_manager.reset_ssh_setup()
         return
     
     # Handle GitHub CLI commands
     if args.github_status:
-        print("🔍 Checking GitHub CLI Status...")
-        docker_manager.start_container()
         github_manager.check_github_cli_status()
         return
-    
-    if args.github_setup:
-        print("🔧 Setting up GitHub CLI Authentication...")
-        try:
-            docker_manager.start_container()
-            github_manager.setup_github_cli_auth()
-        except Exception as e:
-            print(f"❌ Failed to setup GitHub CLI: {e}")
-        return
-    
-    if args.github_issues:
-        print(f"📋 Listing GitHub Issues for {args.github_issues}...")
-        try:
-            docker_manager.start_container()
-            github_manager.list_github_issues(args.github_issues, args.issue_state, args.issue_limit)
-        except Exception as e:
-            print(f"❌ Failed to list issues: {e}")
-        return
-    
-    if args.github_issue:
-        repo, issue_number = args.github_issue
-        print(f"📋 Getting GitHub Issue #{issue_number} from {repo}...")
-        try:
-            docker_manager.start_container()
-            github_manager.get_github_issue(repo, issue_number)
-        except Exception as e:
-            print(f"❌ Failed to get issue: {e}")
-        return
-    
-    if args.github_search:
-        repo, query = args.github_search
-        print(f"🔍 Searching GitHub Issues in {repo} for '{query}'...")
-        try:
-            docker_manager.start_container()
-            github_manager.search_github_issues(repo, query, args.issue_state, args.issue_limit)
-        except Exception as e:
-            print(f"❌ Failed to search issues: {e}")
-        return
-    
-    # Handle single task file processing
-    if args.task_file:
-        task_path = Path(args.task_file)
-        if not task_path.exists():
-            print(f"❌ Task file not found: {args.task_file}")
-            return
-        
-        print(f"🎯 Processing single task: {task_path.name}")
-        
-        # Start Docker container
-        try:
-            docker_manager.start_container()
-            print("[Tinker] Docker sandbox is ready.")
-        except Exception as e:
-            print(f"[Tinker] Failed to start Docker sandbox: {e}")
-            print("[Tinker] Exiting for safety.")
-            return
-        
-        # Load environment and setup AI client
-        load_dotenv()
-        client = None
-        if os.getenv("OPENAI_API_KEY"):
-            client = OpenAI()
-            print("🤖 OpenAI client initialized")
-        else:
-            print("⚠️  No OpenAI API key found - running without AI analysis")
-        
-        # Process the single task
-        tinker_folder = Path.home() / ".tinker"
-        tinker_folder.mkdir(exist_ok=True)
-        tasks_folder = tinker_folder / "tasks"
-        tasks_folder.mkdir(exist_ok=True)
-        
-        success = process_task(task_path, tinker_folder, client, is_single_task=True)
-        if success:
-            print("✅ Task processing completed successfully")
-        else:
-            print("⚠️  Task completed with issues")
-        return
-    
-    # Start or reuse the persistent Docker container
-    try:
+    elif args.github_setup:
         docker_manager.start_container()
-        print("[Tinker] Docker sandbox is ready.")
-    except Exception as e:
-        print(f"[Tinker] Failed to start Docker sandbox: {e}")
-        print("[Tinker] Exiting for safety.")
+        github_manager.setup_github_cli_auth()
+        return
+    elif args.github_issues:
+        issues = github_manager.list_github_issues(args.github_issues, args.issue_state, args.issue_limit)
+        if issues:
+            for issue in issues:
+                print(f"#{issue['number']}: {issue['title']}")
+                print(f"   State: {issue['state']} | Labels: {', '.join(issue.get('labels', []))}")
+                print(f"   URL: {issue['url']}")
+                print()
+        return
+    elif args.github_issue:
+        repo, issue_num = args.github_issue.split(':')
+        issue = github_manager.get_github_issue(repo, int(issue_num))
+        if issue:
+            print(f"#{issue['number']}: {issue['title']}")
+            print(f"State: {issue['state']}")
+            print(f"Author: {issue['author']}")
+            print(f"Labels: {', '.join(issue.get('labels', []))}")
+            print(f"Created: {issue['created_at']}")
+            print(f"URL: {issue['url']}")
+            print(f"\nBody:\n{issue['body']}")
+        return
+    elif args.github_search:
+        parts = args.github_search.split(' ', 1)
+        if len(parts) == 2:
+            repo, query = parts
+            issues = github_manager.search_github_issues(repo, query, args.issue_state, args.issue_limit)
+            if issues:
+                for issue in issues:
+                    print(f"#{issue['number']}: {issue['title']}")
+                    print(f"   State: {issue['state']} | Labels: {', '.join(issue.get('labels', []))}")
+                    print(f"   URL: {issue['url']}")
+                    print()
         return
     
-    """Main Tinker CLI that runs forever."""
-    # Load environment variables from .env file
-    load_dotenv()
-    
-    print("🔧 Tinker - Autonomous AI Agent Starting...")
-    print("Building and maintaining Pixel...")
-    
-    # Create .tinker folder
+    # Create tinker folder structure
     tinker_folder = create_tinker_folder()
     
-    # Acquire process lock
+    # Acquire lock to prevent multiple instances
     if not acquire_lock(tinker_folder):
-        print("Exiting due to existing Tinker process.")
         return
     
-    # Initialize OpenAI client
-    client = None
-    try:
-        api_key = os.getenv('OPENAI_API_KEY')
-        if not api_key:
-            print("⚠️  OPENAI_API_KEY not found in environment")
-            print("   Phase 1.3 shell command analysis will be disabled")
-            print("   Add your OpenAI API key to .env file for full functionality")
-        else:
-            client = OpenAI(api_key=api_key)
-            print("✅ OpenAI client initialized - Phase 1.3 shell capabilities enabled")
-    except Exception as e:
-        print(f"⚠️  OpenAI client initialization failed: {e}")
-        print("Continuing without AI analysis...")
+    # Start Docker container
+    print("🐳 Starting Docker container...")
+    docker_manager.start_container()
     
-    print("\n🚀 Tinker is now running with Phase 2.3 capabilities...")
-    print("- 🤖 AI-powered task analysis")
-    print("- 💻 Shell command execution with user approval")
-    print("- 📧 Email sending functionality")
-    print("- 📋 Detailed task completion reports")
-    print("\nScanning for tasks every 5 seconds...")
-    print("Press Ctrl+C to stop\n")
+    # Single task mode
+    if args.single_task:
+        task_file = Path(args.single_task)
+        if not task_file.exists():
+            print(f"❌ Task file not found: {args.single_task}")
+            return
+        
+        print(f"🎯 Processing single task: {task_file.name}")
+        # Use the appropriate client
+        client = anthropic_client if anthropic_client else openai_client
+        process_task(task_file, tinker_folder, client, is_single_task=True)
+        return
     
-    # Initial state update
-    update_state(tinker_folder, "🚀 Tinker Phase 2.3 started - AI shell + email capabilities enabled")
+    # Main loop for continuous task processing
+    print(f"🚀 Tinker Phase 3.2 started! Agent: {agent_type}")
+    print("👀 Watching for tasks in .tinker/tasks folder...")
+    update_state(tinker_folder, f"🚀 Tinker Phase 3.2 started with {agent_type} agent")
     
     try:
         while True:
             # Scan for new tasks
-            tasks = scan_for_tasks(tinker_folder)
+            task_files = scan_for_tasks(tinker_folder)
             
-            if tasks:
-                print(f"📋 Found {len(tasks)} task(s) to process:")
-                for task_file in tasks:
-                    print(f"   • {task_file.name}")
+            if task_files:
+                print(f"\n📋 Found {len(task_files)} task(s) to process")
                 
-                # Process each task
-                for task_file in tasks:
-                    success = process_task(task_file, tinker_folder, client)
-                    if success:
-                        print("   ⏳ Task processing completed...")
-                    else:
-                        print("   ⚠️  Task completed with issues...")
-                    time.sleep(2)  # Brief pause between tasks
-                    
-            else:
-                # No tasks found, generate some activity
-                timestamp = time.strftime("%H:%M:%S")
-                print(f"[{timestamp}] 🔍 Scanning for tasks... (none found)")
-                update_state(tinker_folder, "🔍 Scanned for tasks - none found")
+                for task_file in task_files:
+                    # Use the appropriate client
+                    client = anthropic_client if anthropic_client else openai_client
+                    process_task(task_file, tinker_folder, client)
+                
+                print(f"✅ Completed processing {len(task_files)} task(s)")
+                update_state(tinker_folder, f"✅ Processed {len(task_files)} task(s)")
             
-            # Wait 5 seconds before next scan
+            # Wait before checking again
             time.sleep(5)
             
     except KeyboardInterrupt:
+        print(f"\n🛑 Tinker stopped by user")
         update_state(tinker_folder, "🛑 Tinker stopped by user")
-        print("\n\n🛑 Tinker stopped by user")
-        print("Goodbye!")
+
 
 if __name__ == "__main__":
     main()
