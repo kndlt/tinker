@@ -158,27 +158,47 @@ def scan_for_tasks(tinker_folder):
     task_files = list(tasks_folder.glob("*.md"))
     return task_files
 
-def process_task(task_file, tinker_folder, client=None, is_single_task=False):
-    """Process a single task file through the workflow."""
-    task_name = task_file.name
+def process_task(task_source, tinker_folder, client=None, is_single_task=False, is_inline=False):
+    """Process a task from either a file or inline content.
+    
+    Args:
+        task_source: Either a Path object (for file-based tasks) or string (for inline tasks)
+        tinker_folder: Path to .tinker folder
+        client: AI client (OpenAI or Anthropic)
+        is_single_task: Whether this is a single task run (vs continuous monitoring)
+        is_inline: Whether this is an inline task (content passed directly)
+    """
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     
-    try:
-        # Read task content
+    if is_inline:
+        # For inline tasks, task_source is the content string
+        task_content = task_source
+        task_name = f"inline_task_{timestamp}"
+        print(f"🎯 Processing inline task:")
+    else:
+        # For file-based tasks, task_source is a Path object
+        task_file = task_source
+        task_name = task_file.name
         task_content = task_file.read_text()
+        print(f"📋 Processing task: {task_name}")
+    
+    try:
         
         # Update state
         update_state(tinker_folder, f"🔄 Processing task: {task_name}")
         
-        # Move to ongoing folder (only if not processing a single task from external location)
-        if not is_single_task:
+        # Move to ongoing folder (only if not processing a single task from external location and not inline)
+        if not is_single_task and not is_inline:
             ongoing_folder = tinker_folder / "ongoing"
             ongoing_folder.mkdir(exist_ok=True)
             ongoing_file = ongoing_folder / task_name
             shutil.move(str(task_file), str(ongoing_file))
-        else:
+        elif not is_inline:
             # For single tasks, use the original file path
             ongoing_file = task_file
+        else:
+            # For inline tasks, no file operations needed
+            ongoing_file = None
         
         print(f"📋 Processing task: {task_name}")
         print(f"📄 Task content preview:")
@@ -395,7 +415,7 @@ def process_task(task_file, tinker_folder, client=None, is_single_task=False):
                 completion_report += f"- {error}\n"
         
         # Write the completion report and handle file operations
-        if not is_single_task:
+        if not is_single_task and not is_inline and ongoing_file is not None:
             # For normal workflow: write to ongoing file and move to done folder
             ongoing_file.write_text(completion_report)
             
@@ -413,7 +433,7 @@ def process_task(task_file, tinker_folder, client=None, is_single_task=False):
             print(f"\n{status_emoji} Task completed: {task_name}")
             print(f"📁 Moved to: done/{done_filename}")
         else:
-            # For single task processing: just display the completion report
+            # For single task processing or inline tasks: just display the completion report
             status_emoji = "✅" if task_result["completed"] else "⚠️"
             print(f"\n{status_emoji} Task completed: {task_name}")
             print("\n📊 Task Completion Report:")
@@ -775,7 +795,6 @@ Safety notes:
                     "tool_use_id": tool_call.id,
                     "content": json.dumps(result) if result else ""
                 })
-            
             # Add tool results message with proper content structure for Anthropic
             # Anthropic expects content to be a list when using tool results
             tool_results_message = {
@@ -835,6 +854,7 @@ def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Tinker - AI Agent Task Runner")
     parser.add_argument("--single-task", help="Path to a single task file to process")
+    parser.add_argument("--task", help="Task content to process inline (no file required)")
     parser.add_argument("--ssh-status", action="store_true", help="Check GitHub SSH status")
     parser.add_argument("--ssh-setup", action="store_true", help="Setup GitHub SSH authentication")  
     parser.add_argument("--ssh-reset", action="store_true", help="Reset GitHub SSH keys")
@@ -958,6 +978,15 @@ def main():
         # Use the appropriate client
         client = anthropic_client if anthropic_client else openai_client
         process_task(task_file, tinker_folder, client, is_single_task=True)
+        return
+    
+    # Inline task mode
+    if args.task:
+        task_content = args.task
+        print(f"🎯 Processing inline task")
+        # Use the appropriate client
+        client = anthropic_client if anthropic_client else openai_client
+        process_task(task_content, tinker_folder, client, is_single_task=True, is_inline=True)
         return
     
     # Main loop for continuous task processing
