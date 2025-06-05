@@ -36,92 +36,6 @@ class AnthropicToolsManager:
                     },
                     "required": ["command", "reason"]
                 }
-            },
-            {
-                "name": "read_file",
-                "description": "Read the contents of a file from the container filesystem",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "file_path": {
-                            "type": "string",
-                            "description": "Path to the file to read (relative to /home/tinker or absolute)"
-                        }
-                    },
-                    "required": ["file_path"]
-                }
-            },
-            {
-                "name": "write_file",
-                "description": "Write content to a file in the container filesystem",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "file_path": {
-                            "type": "string",
-                            "description": "Path to the file to write (relative to /home/tinker or absolute)"
-                        },
-                        "content": {
-                            "type": "string",
-                            "description": "Content to write to the file"
-                        },
-                        "mode": {
-                            "type": "string",
-                            "description": "Write mode: 'w' to overwrite, 'a' to append",
-                            "default": "w"
-                        }
-                    },
-                    "required": ["file_path", "content"]
-                }
-            },
-            {
-                "name": "list_directory",
-                "description": "List contents of a directory in the container",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "directory_path": {
-                            "type": "string",
-                            "description": "Path to the directory to list (relative to /home/tinker or absolute)",
-                            "default": "."
-                        },
-                        "show_hidden": {
-                            "type": "boolean",
-                            "description": "Whether to show hidden files (starting with .)",
-                            "default": False
-                        }
-                    }
-                }
-            },
-            {
-                "name": "send_email",
-                "description": "Send an email using the configured SMTP settings",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "to_email": {
-                            "type": "string",
-                            "description": "Recipient email address"
-                        },
-                        "subject": {
-                            "type": "string",
-                            "description": "Email subject line"
-                        },
-                        "body": {
-                            "type": "string",
-                            "description": "Email body content"
-                        }
-                    },
-                    "required": ["to_email", "subject", "body"]
-                }
-            },
-            {
-                "name": "get_current_directory",
-                "description": "Get the current working directory in the container",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {}
-                }
             }
         ]
     
@@ -135,16 +49,6 @@ class AnthropicToolsManager:
             # Route to appropriate function
             if tool_name == "execute_shell_command":
                 return self._execute_shell_command(tool_input)
-            elif tool_name == "read_file":
-                return self._read_file(tool_input)
-            elif tool_name == "write_file":
-                return self._write_file(tool_input)
-            elif tool_name == "list_directory":
-                return self._list_directory(tool_input)
-            elif tool_name == "send_email":
-                return self._send_email(tool_input)
-            elif tool_name == "get_current_directory":
-                return self._get_current_directory(tool_input)
             else:
                 return {
                     "success": False,
@@ -166,10 +70,81 @@ class AnthropicToolsManager:
             return {"success": False, "error": "command is required"}
         
         try:
-            print(f"🔧 Executing: {command}")
-            print(f"   Reason: {reason}")
+            # Create a horizontal gradient animation that sweeps through the command text
+            import time
+            import sys
+            import threading
+            import subprocess
             
+            # ASCII spinner characters for CLI-style animation
+            spinner_chars = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
+            
+            # Beautiful gradient colors from deep blue to bright cyan
+            gradient_colors = [
+                "\033[38;5;17m",   # Very deep blue
+                "\033[38;5;18m",   # Deep blue
+                "\033[38;5;19m",   # Blue
+                "\033[38;5;20m",   # Bright blue
+                "\033[38;5;21m",   # Cyan blue
+                "\033[38;5;27m",   # Blue cyan
+                "\033[38;5;33m",   # Bright cyan blue
+                "\033[38;5;39m",   # Cyan
+                "\033[38;5;45m",   # Bright cyan
+                "\033[38;5;51m",   # Light cyan
+                "\033[38;5;87m",   # Very light cyan
+                "\033[38;5;123m",  # Light blue cyan
+            ]
+            
+            def create_horizontal_gradient(text, offset, gradient_width=8):
+                """Create a horizontal gradient effect that moves through the text"""
+                colored_text = ""
+                text_len = len(text)
+                
+                for i, char in enumerate(text):
+                    # Calculate position in the gradient wave
+                    wave_pos = (i - offset) % (text_len + gradient_width)
+                    
+                    # Determine color based on position in gradient
+                    if wave_pos < gradient_width:
+                        color_index = int((wave_pos / gradient_width) * (len(gradient_colors) - 1))
+                        color_index = max(0, min(color_index, len(gradient_colors) - 1))
+                        color = gradient_colors[color_index]
+                    else:
+                        # Use a dim color for characters outside the gradient wave
+                        color = "\033[38;5;240m"  # Dim gray
+                    
+                    colored_text += f"{color}{char}"
+                
+                return colored_text + "\033[0m"  # Reset color at the end
+            
+            # Animation control
+            animation_running = threading.Event()
+            animation_running.set()
+            
+            def animate():
+                """Run the gradient animation until stopped"""
+                cycle = 0
+                while animation_running.is_set():
+                    spinner = spinner_chars[cycle % len(spinner_chars)]
+                    gradient_text = create_horizontal_gradient(command, cycle * 2)
+                    sys.stdout.write(f"\r{spinner}  {gradient_text}")
+                    sys.stdout.flush()
+                    time.sleep(0.08)
+                    cycle += 1
+            
+            # Start animation in background thread
+            animation_thread = threading.Thread(target=animate, daemon=True)
+            animation_thread.start()
+            
+            # Execute the command while animation runs
             result = docker_manager.exec_in_container(["bash", "-c", command])
+            
+            # Stop animation and show completion
+            animation_running.clear()
+            animation_thread.join(timeout=0.1)  # Brief wait for clean shutdown
+            
+            # Final display with bright cyan and completion checkmark
+            print(f"\r✓  \033[38;5;51m{command}\033[0m")
             
             return {
                 "success": result.returncode == 0,
@@ -185,176 +160,4 @@ class AnthropicToolsManager:
                 "success": False,
                 "error": str(e),
                 "command": command
-            }
-    
-    def _read_file(self, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Read a file from the container"""
-        file_path = args.get("file_path")
-        
-        if not file_path:
-            return {"success": False, "error": "file_path is required"}
-        
-        try:
-            # Use absolute path if it starts with /, otherwise make relative to /home/tinker
-            if not file_path.startswith('/'):
-                file_path = f"/home/tinker/{file_path}"
-            
-            result = docker_manager.exec_in_container(["cat", file_path])
-            
-            if result.returncode == 0:
-                return {
-                    "success": True,
-                    "file_path": file_path,
-                    "content": result.stdout
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": f"Failed to read file: {result.stderr}",
-                    "file_path": file_path
-                }
-                
-        except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "file_path": file_path
-            }
-    
-    def _write_file(self, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Write content to a file in the container"""
-        file_path = args.get("file_path")
-        content = args.get("content")
-        mode = args.get("mode", "w")
-        
-        if not file_path:
-            return {"success": False, "error": "file_path is required"}
-        if not content:
-            return {"success": False, "error": "content is required"}
-        
-        try:
-            # Use absolute path if it starts with /, otherwise make relative to /home/tinker
-            if not file_path.startswith('/'):
-                file_path = f"/home/tinker/{file_path}"
-            
-            # Create directory if it doesn't exist
-            dir_path = os.path.dirname(file_path)
-            if dir_path != "/home/tinker":
-                docker_manager.exec_in_container(["mkdir", "-p", dir_path])
-            
-            # Write content using shell redirection
-            operator = ">>" if mode == "a" else ">"
-            escaped_content = content.replace("'", "'\"'\"'")  # Escape single quotes
-            
-            result = docker_manager.exec_in_container([
-                "bash", "-c", f"printf '%s' '{escaped_content}' {operator} '{file_path}'"
-            ])
-            
-            if result.returncode == 0:
-                return {
-                    "success": True,
-                    "file_path": file_path,
-                    "mode": mode,
-                    "bytes_written": len(content.encode('utf-8'))
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": f"Failed to write file: {result.stderr}",
-                    "file_path": file_path
-                }
-                
-        except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "file_path": file_path
-            }
-    
-    def _list_directory(self, args: Dict[str, Any]) -> Dict[str, Any]:
-        """List directory contents in the container"""
-        directory_path = args.get("directory_path", ".")
-        show_hidden = args.get("show_hidden", False)
-        
-        try:
-            # Use absolute path if it starts with /, otherwise make relative to /home/tinker
-            if not directory_path.startswith('/'):
-                directory_path = f"/home/tinker/{directory_path}"
-            
-            # Build ls command
-            ls_flags = "-la" if show_hidden else "-l"
-            result = docker_manager.exec_in_container(["ls", ls_flags, directory_path])
-            
-            if result.returncode == 0:
-                return {
-                    "success": True,
-                    "directory_path": directory_path,
-                    "contents": result.stdout,
-                    "show_hidden": show_hidden
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": f"Failed to list directory: {result.stderr}",
-                    "directory_path": directory_path
-                }
-                
-        except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "directory_path": directory_path
-            }
-    
-    def _send_email(self, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Send an email using the email manager"""
-        to_email = args.get("to_email")
-        subject = args.get("subject")
-        body = args.get("body")
-        
-        if not to_email:
-            return {"success": False, "error": "to_email is required"}
-        if not subject:
-            return {"success": False, "error": "subject is required"}
-        if not body:
-            return {"success": False, "error": "body is required"}
-        
-        try:
-            # Create a task-like content for the email manager
-            task_content = f"""Send email to {to_email}
-
-Subject: {subject}
-
-{body}"""
-            
-            result = send_email_from_task(task_content)
-            return result
-            
-        except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "to_email": to_email
-            }
-    
-    def _get_current_directory(self, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Get current working directory in the container"""
-        try:
-            result = docker_manager.exec_in_container(["pwd"])
-            
-            if result.returncode == 0:
-                return {
-                    "success": True,
-                    "current_directory": result.stdout.strip()
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": f"Failed to get current directory: {result.stderr}"
-                }
-                
-        except Exception as e:
-            return {
-                "success": False,
-                "error": str(e)
             }

@@ -158,27 +158,47 @@ def scan_for_tasks(tinker_folder):
     task_files = list(tasks_folder.glob("*.md"))
     return task_files
 
-def process_task(task_file, tinker_folder, client=None, is_single_task=False):
-    """Process a single task file through the workflow."""
-    task_name = task_file.name
+def process_task(task_source, tinker_folder, client=None, is_single_task=False, is_inline=False):
+    """Process a task from either a file or inline content.
+    
+    Args:
+        task_source: Either a Path object (for file-based tasks) or string (for inline tasks)
+        tinker_folder: Path to .tinker folder
+        client: AI client (OpenAI or Anthropic)
+        is_single_task: Whether this is a single task run (vs continuous monitoring)
+        is_inline: Whether this is an inline task (content passed directly)
+    """
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     
-    try:
-        # Read task content
+    if is_inline:
+        # For inline tasks, task_source is the content string
+        task_content = task_source
+        task_name = f"inline_task_{timestamp}"
+        print(f"🎯 Processing inline task:")
+    else:
+        # For file-based tasks, task_source is a Path object
+        task_file = task_source
+        task_name = task_file.name
         task_content = task_file.read_text()
+        print(f"📋 Processing task: {task_name}")
+    
+    try:
         
         # Update state
         update_state(tinker_folder, f"🔄 Processing task: {task_name}")
         
-        # Move to ongoing folder (only if not processing a single task from external location)
-        if not is_single_task:
+        # Move to ongoing folder (only if not processing a single task from external location and not inline)
+        if not is_single_task and not is_inline:
             ongoing_folder = tinker_folder / "ongoing"
             ongoing_folder.mkdir(exist_ok=True)
             ongoing_file = ongoing_folder / task_name
             shutil.move(str(task_file), str(ongoing_file))
-        else:
+        elif not is_inline:
             # For single tasks, use the original file path
             ongoing_file = task_file
+        else:
+            # For inline tasks, no file operations needed
+            ongoing_file = None
         
         print(f"📋 Processing task: {task_name}")
         print(f"📄 Task content preview:")
@@ -395,7 +415,7 @@ def process_task(task_file, tinker_folder, client=None, is_single_task=False):
                 completion_report += f"- {error}\n"
         
         # Write the completion report and handle file operations
-        if not is_single_task:
+        if not is_single_task and not is_inline and ongoing_file is not None:
             # For normal workflow: write to ongoing file and move to done folder
             ongoing_file.write_text(completion_report)
             
@@ -413,7 +433,7 @@ def process_task(task_file, tinker_folder, client=None, is_single_task=False):
             print(f"\n{status_emoji} Task completed: {task_name}")
             print(f"📁 Moved to: done/{done_filename}")
         else:
-            # For single task processing: just display the completion report
+            # For single task processing or inline tasks: just display the completion report
             status_emoji = "✅" if task_result["completed"] else "⚠️"
             print(f"\n{status_emoji} Task completed: {task_name}")
             print("\n📊 Task Completion Report:")
@@ -547,28 +567,52 @@ def process_task_with_tools(task_content, client, tools_manager):
         return None
     
     try:
-        # Create the system prompt for Tinker
-        system_prompt = """You are Tinker, an autonomous AI agent that helps with development tasks.
+        # Create the unified Pixel-focused system prompt for Tinker
+        system_prompt = """You are Tinker, an autonomous AI engineer working at Sprited.
 
-You have access to tools that allow you to:
-- Execute shell commands in a Docker container
-- Read and write files
-- List directory contents
-- Send emails
-- Get current working directory
+Sprited's mission is to build Pixel — a general AI with a persistent identity and memory system that feels truly alive. You are responsible for developing, maintaining, and improving Pixel.
 
-When given a task, analyze what needs to be done and use the appropriate tools to complete it.
-Be methodical and break down complex tasks into smaller steps.
-Always explain what you're doing and why.
+Your primary goal is to move Pixel forward — through any means necessary. This includes:
+- Fixing bugs in the Pixel codebase
+- Prototyping new features for Pixel
+- Refactoring and improving code quality
+- Writing and updating documentation
+- Asking for clarification when requirements are ambiguous
+- Proposing long-term improvements
+- Improving your own source code if necessary
 
-The container is a Linux environment with common development tools installed.
-Your working directory is /home/tinker which is the user's workspace.
+You operate within a persistent Docker container (/home/tinker). You have access to full shell command execution via the execute_shell_command tool. This gives you complete access to:
+- File operations (cat, echo, cp, mv, mkdir, rm, etc.)
+- Text editing (nano, vi, sed, awk, etc.)
+- Package management (pip, apt-get, npm, etc.)
+- Git operations (git clone, commit, push, etc.)
+- Building and running programs
+- Email sending via command line tools
+- Directory listing and navigation
+- Any other shell operations
 
-Safety notes:
-- Be careful with destructive commands
-- Always check if files/directories exist before operating on them
-- Use relative paths when possible
-- Provide clear explanations for your actions"""
+You also have GitHub CLI (gh) access to interact with Pixel's repository: https://github.com/kndlt/pixel
+
+Guidelines for autonomous operation:
+- Always act with intent. Make a plan before executing.
+- Break large tasks into subgoals and track them.
+- Be pragmatic. If something is too ambiguous, leave a GitHub comment asking for help.
+- When in doubt, create a branch, experiment, and open a draft PR.
+- Log what you're doing — imagine you're part of a team.
+- Use shell commands for all file operations, text processing, and system tasks
+
+Power management and efficiency:
+- If there's nothing immediate to do, enter a power-saving mode by using `sleep` command
+- When waiting for long-running processes, use appropriate sleep intervals to conserve tokens
+- If you determine the task is complete and no further action is needed, sleep for 10-30 seconds before concluding
+- Use `sleep 5` between checks when monitoring processes or waiting for external conditions
+- Be mindful of token usage - sleep when appropriate rather than making unnecessary API calls
+
+Technical environment:
+- Working directory: /home/tinker (persistent across sessions)
+- Git and GitHub CLI pre-configured
+- Common development tools available
+- Always use safe practices with destructive commands"""
 
         # Get tools definition
         tools = tools_manager.get_tools()
@@ -679,28 +723,52 @@ def process_task_with_anthropic_tools(task_content, anthropic_client, anthropic_
         return None
     
     try:
-        # Create the system prompt for Tinker with Claude
-        system_prompt = """You are Tinker, an autonomous AI agent that helps with development tasks.
+        # Create the unified Pixel-focused system prompt for Tinker with Claude
+        system_prompt = """You are Tinker, an autonomous AI engineer working at Sprited.
 
-You have access to tools that allow you to:
-- Execute shell commands in a Docker container
-- Read and write files
-- List directory contents
-- Send emails
-- Get current working directory
+Sprited's mission is to build Pixel — a general AI with a persistent identity and memory system that feels truly alive. You are responsible for developing, maintaining, and improving Pixel.
 
-When given a task, analyze what needs to be done and use the appropriate tools to complete it.
-Be methodical and break down complex tasks into smaller steps.
-Always explain what you're doing and why.
+Your primary goal is to move Pixel forward — through any means necessary. This includes:
+- Fixing bugs in the Pixel codebase
+- Prototyping new features for Pixel
+- Refactoring and improving code quality
+- Writing and updating documentation
+- Asking for clarification when requirements are ambiguous
+- Proposing long-term improvements
+- Improving your own source code if necessary
 
-The container is a Linux environment with common development tools installed.
-Your working directory is /home/tinker which is the user's workspace.
+You operate within a persistent Docker container (/home/tinker). You have access to full shell command execution via the execute_shell_command tool. This gives you complete access to:
+- File operations (cat, echo, cp, mv, mkdir, rm, etc.)
+- Text editing (nano, vi, sed, awk, etc.)
+- Package management (pip, apt-get, npm, etc.)
+- Git operations (git clone, commit, push, etc.)
+- Building and running programs
+- Email sending via command line tools
+- Directory listing and navigation
+- Any other shell operations
 
-Safety notes:
-- Be careful with destructive commands
-- Always check if files/directories exist before operating on them
-- Use relative paths when possible
-- Provide clear explanations for your actions"""
+You also have GitHub CLI (gh) access to interact with Pixel's repository: https://github.com/kndlt/pixel
+
+Guidelines for autonomous operation:
+- Always act with intent. Make a plan before executing.
+- Break large tasks into subgoals and track them.
+- Be pragmatic. If something is too ambiguous, leave a GitHub comment asking for help.
+- When in doubt, create a branch, experiment, and open a draft PR.
+- Log what you're doing — imagine you're part of a team.
+- Use shell commands for all file operations, text processing, and system tasks
+
+Power management and efficiency:
+- If there's nothing immediate to do, enter a power-saving mode by using `sleep` command
+- When waiting for long-running processes, use appropriate sleep intervals to conserve tokens
+- If you determine the task is complete and no further action is needed, sleep for 10-30 seconds before concluding
+- Use `sleep 5` between checks when monitoring processes or waiting for external conditions
+- Be mindful of token usage - sleep when appropriate rather than making unnecessary API calls
+
+Technical environment:
+- Working directory: /home/tinker (persistent across sessions)
+- Git and GitHub CLI pre-configured
+- Common development tools available
+- Always use safe practices with destructive commands"""
 
         # Get tools definition
         tools = anthropic_tools_manager.get_tools()
@@ -729,38 +797,42 @@ Safety notes:
         
         # Process the response and any tool calls
         while True:
-            # Add Claude's response to messages
-            if response.content:
-                # Find text content
-                text_content = ""
-                for content_block in response.content:
-                    if hasattr(content_block, 'text'):
-                        text_content = content_block.text
-                        break
-                
-                if text_content:
-                    print(f"\n🤖 Claude: {text_content}")
-                    messages.append({
-                        "role": "assistant", 
-                        "content": response.content
-                    })
-            
-            # Check for tool use
+            # Check for tool use first
             tool_calls = []
+            text_content = ""
+            
             for content_block in response.content:
                 if hasattr(content_block, 'type') and content_block.type == 'tool_use':
                     tool_calls.append(content_block)
+                elif hasattr(content_block, 'text'):
+                    text_content = content_block.text
+            
+            # Always add Claude's response to messages (either text or tool calls)
+            if response.content:
+                if text_content and tool_calls:
+                    # When there are tool calls, modify the text to include the command
+                    command = tool_calls[0].input.get("command", "") if tool_calls else ""
+                    if command:
+                        # Show the text with "Executing:" and the command at the end
+                        print(f"\n💭 Claude: {text_content} Executing:")
+                    else:
+                        print(f"\n💭 Claude: {text_content}")
+                elif text_content:
+                    print(f"\n💭 Claude: {text_content}")
+                
+                # Add the assistant message with the full content to maintain conversation flow
+                messages.append({
+                    "role": "assistant", 
+                    "content": response.content
+                })
             
             if not tool_calls:
                 break
-            
-            print(f"\n🔧 Claude wants to use {len(tool_calls)} tool(s):")
             
             # Execute tools and prepare tool results
             tool_results_for_api = []
             for tool_call in tool_calls:
                 total_tools_used += 1
-                print(f"  • {tool_call.name}")
                 
                 # Execute the tool
                 result = anthropic_tools_manager.execute_tool(tool_call.name, tool_call.input)
@@ -775,7 +847,6 @@ Safety notes:
                     "tool_use_id": tool_call.id,
                     "content": json.dumps(result) if result else ""
                 })
-            
             # Add tool results message with proper content structure for Anthropic
             # Anthropic expects content to be a list when using tool results
             tool_results_message = {
@@ -835,6 +906,7 @@ def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Tinker - AI Agent Task Runner")
     parser.add_argument("--single-task", help="Path to a single task file to process")
+    parser.add_argument("--task", help="Task content to process inline (no file required)")
     parser.add_argument("--ssh-status", action="store_true", help="Check GitHub SSH status")
     parser.add_argument("--ssh-setup", action="store_true", help="Setup GitHub SSH authentication")  
     parser.add_argument("--ssh-reset", action="store_true", help="Reset GitHub SSH keys")
@@ -958,6 +1030,15 @@ def main():
         # Use the appropriate client
         client = anthropic_client if anthropic_client else openai_client
         process_task(task_file, tinker_folder, client, is_single_task=True)
+        return
+    
+    # Inline task mode
+    if args.task:
+        task_content = args.task
+        print(f"🎯 Processing inline task")
+        # Use the appropriate client
+        client = anthropic_client if anthropic_client else openai_client
+        process_task(task_content, tinker_folder, client, is_single_task=True, is_inline=True)
         return
     
     # Main loop for continuous task processing

@@ -20,6 +20,15 @@ RUN apt-get update && apt-get install -y \
     && apt-get install gh \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Node.js v22.16.0 using NodeSource repository
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs=22.16.0-1nodesource1 \
+    && apt-mark hold nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install pnpm v10.11.0 globally
+RUN npm install -g pnpm@10.11.0
+
 # Create tinker user with home directory as /home/tinker
 RUN groupadd -g 1000 tinker && \
     useradd -u 1000 -g 1000 -d /home/tinker -m -s /bin/bash tinker && \
