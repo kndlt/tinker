@@ -96,12 +96,12 @@ class AnthropicToolsManager:
             for i in range(cycles):
                 spinner = spinner_chars[i % len(spinner_chars)]
                 color = gradient_colors[i % len(gradient_colors)]
-                sys.stdout.write(f"\r{spinner} {color}{command}\033[0m")
+                sys.stdout.write(f"\r{spinner}  {color}{command}\033[0m")
                 sys.stdout.flush()
                 time.sleep(0.1)  # Fast spinner
             
             # Final display with bright cyan and completion checkmark
-            print(f"\r✓ \033[38;5;51m{command}\033[0m")
+            print(f"\r✓  \033[38;5;51m{command}\033[0m")
             
             result = docker_manager.exec_in_container(["bash", "-c", command])
             
