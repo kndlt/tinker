@@ -19,6 +19,43 @@ from . import github_manager
 from .tools_manager import ToolsManager
 from .anthropic_tools_manager import AnthropicToolsManager
 
+def process_task_langgraph(task_content: str):
+    """Process a task using LangGraph workflow"""
+    try:
+        from .langgraph_workflow import TinkerWorkflow
+        from .checkpoint_manager import TinkerCheckpointManager
+        
+        print("🔗 Using LangGraph execution (Phase 5.1)")
+        
+        # Initialize LangGraph components
+        checkpoint_manager = TinkerCheckpointManager()
+        workflow = TinkerWorkflow(checkpoint_manager)
+        
+        # Execute task
+        result = workflow.execute_task(task_content)
+        
+        # Display results
+        print(f"📊 Execution Status: {result['execution_status']}")
+        print(f"🆔 Thread ID: {result['thread_id']}")
+        print(f"📍 Resumption Point: {result.get('resumption_point', 'N/A')}")
+        
+        if result.get('tool_results'):
+            print("\n🔧 Tool Results:")
+            for i, tool_result in enumerate(result['tool_results'], 1):
+                print(f"  {i}. {tool_result.get('tool_name', 'Unknown')}:")
+                if 'result' in tool_result:
+                    output = tool_result['result'].get('output', 'No output')
+                    print(f"     {output[:200]}{'...' if len(output) > 200 else ''}")
+        
+        print(f"✅ LangGraph task completed successfully")
+        
+    except ImportError as e:
+        print(f"❌ LangGraph dependencies not available: {e}")
+        print("   Please install required packages: poetry install")
+    except Exception as e:
+        print(f"❌ LangGraph execution failed: {e}")
+        print("   Falling back to standard execution would require re-running without --langgraph flag")
+
 def is_process_running(pid):
     """Check if a process with given PID is running."""
     try:
@@ -907,6 +944,7 @@ def main():
     parser = argparse.ArgumentParser(description="Tinker - AI Agent Task Runner")
     parser.add_argument("--single-task", help="Path to a single task file to process")
     parser.add_argument("--task", help="Task content to process inline (no file required)")
+    parser.add_argument("--langgraph", action="store_true", help="Use LangGraph-based execution (experimental)")
     parser.add_argument("--ssh-status", action="store_true", help="Check GitHub SSH status")
     parser.add_argument("--ssh-setup", action="store_true", help="Setup GitHub SSH authentication")  
     parser.add_argument("--ssh-reset", action="store_true", help="Reset GitHub SSH keys")
@@ -1027,18 +1065,29 @@ def main():
             return
         
         print(f"🎯 Processing single task: {task_file.name}")
-        # Use the appropriate client
-        client = anthropic_client if anthropic_client else openai_client
-        process_task(task_file, tinker_folder, client, is_single_task=True)
+        
+        if args.langgraph:
+            # Use LangGraph execution
+            task_content = task_file.read_text()
+            process_task_langgraph(task_content)
+        else:
+            # Use existing execution
+            client = anthropic_client if anthropic_client else openai_client
+            process_task(task_file, tinker_folder, client, is_single_task=True)
         return
     
     # Inline task mode
     if args.task:
         task_content = args.task
         print(f"🎯 Processing inline task")
-        # Use the appropriate client
-        client = anthropic_client if anthropic_client else openai_client
-        process_task(task_content, tinker_folder, client, is_single_task=True, is_inline=True)
+        
+        if args.langgraph:
+            # Use LangGraph execution
+            process_task_langgraph(task_content)
+        else:
+            # Use existing execution
+            client = anthropic_client if anthropic_client else openai_client
+            process_task(task_content, tinker_folder, client, is_single_task=True, is_inline=True)
         return
     
     # Main loop for continuous task processing

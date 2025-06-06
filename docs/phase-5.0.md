@@ -1,4 +1,6 @@
-# Tinker - Phase 5.0: LangGraph Integration
+# Tinker - Phase 5.0: LangGraph Evaluation
+
+Write a design doc.
 
 ## Overview
 
