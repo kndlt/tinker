@@ -4,3 +4,5 @@ Copilot Instructions
 - Suggest better approaches when it makes sense — don’t just follow orders.
 - Keep it simple. Avoid unnecessary complexity.
 - After creating a file, prompt the user to press “Keep” before continuing.
+- Be concise.
+- Use `npx codebase-index .` to get all files in the codebase and their exported symbols (works for python and javascript)
