@@ -12,6 +12,7 @@ class TinkerState(TypedDict):
     task_content: str
     conversation_history: List[BaseMessage]
     tool_results: List[Dict[str, Any]]
+    planned_tools: List[Dict[str, Any]]  # Tools planned by AI for execution
     current_directory: str
     resumption_point: Optional[str]
     thread_id: Optional[str]
