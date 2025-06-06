@@ -9,18 +9,21 @@ import json
 import uuid
 from datetime import datetime
 from typing import Optional, Dict, Any, List
-from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.sqlite import SqliteSaver
 from .langgraph_state import TinkerState
 
 
 class TinkerCheckpointManager:
-    """Manages state persistence using in-memory checkpointing (Phase 5.1)"""
+    """Manages state persistence using SQLite with LangGraph checkpointing"""
     
     def __init__(self, db_path: str = ".tinker/memory.db"):
         self.db_path = db_path
         self._ensure_directory()
-        # Use MemorySaver for Phase 5.1, will upgrade to SQLite in Phase 5.2
-        self.checkpointer = MemorySaver()
+        # Use SQLiteSaver for Phase 5.2 - proper persistence!
+        # Use direct connection for better compatibility
+        import sqlite3
+        conn = sqlite3.connect(self.db_path, check_same_thread=False)
+        self.checkpointer = SqliteSaver(conn)
         self._init_custom_tables()
     
     def _ensure_directory(self):
@@ -123,6 +126,6 @@ class TinkerCheckpointManager:
         finally:
             conn.close()
     
-    def get_checkpointer(self) -> MemorySaver:
+    def get_checkpointer(self) -> SqliteSaver:
         """Get the LangGraph checkpointer instance"""
         return self.checkpointer
