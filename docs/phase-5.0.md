@@ -30,10 +30,10 @@ Tinker currently provides:
 #### Dependencies & Setup
 ```toml
 # pyproject.toml additions
-langgraph = "^0.2.0"
-langchain = "^0.3.0"
-langchain-openai = "^0.2.0"
-langchain-anthropic = "^0.2.0"
+langgraph = "^0.4.8"
+langchain = "^0.3.25"
+langchain-openai = "^0.3.21"
+langchain-anthropic = "^0.3.15"
 langchain-community = "^0.3.0"
 ```
 
