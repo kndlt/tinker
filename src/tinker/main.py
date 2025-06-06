@@ -35,6 +35,31 @@ def process_task(task_content: str):
         print(f"🆔 Thread ID: {result['thread_id']}")
         print(f"📍 Resumption Point: {result.get('resumption_point', 'N/A')}")
         
+        # Check if we have AI responses to display (for NO_TOOL_NEEDED cases)
+        conversation_history = result.get('conversation_history', [])
+        has_tool_results = bool(result.get('tool_results'))
+        
+        # Display AI responses for direct answers or reasoning
+        ai_responses = []
+        for msg in conversation_history:
+            if hasattr(msg, 'content') and msg.content:
+                # Skip system/user messages, focus on AI responses
+                if hasattr(msg, '__class__') and 'AI' in msg.__class__.__name__:
+                    # Ensure content is a string before checking
+                    content = str(msg.content) if msg.content else ""
+                    # Skip generic completion messages
+                    if not content.startswith("Task completed successfully"):
+                        ai_responses.append(content)
+        
+        if ai_responses and not has_tool_results:
+            # Show direct AI response when no tools were executed
+            print("\n💭 AI Response:")
+            for response in ai_responses:
+                # Format the response nicely
+                for line in str(response).split('\n'):
+                    if line.strip():
+                        print(f"   {line}")
+        
         if result.get('tool_results'):
             print("\n🔧 Tool Results:")
             for i, tool_result in enumerate(result['tool_results'], 1):

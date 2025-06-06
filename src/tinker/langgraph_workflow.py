@@ -20,7 +20,7 @@ class TinkerWorkflow:
         self.checkpoint_manager = checkpoint_manager
         self.graph = self._build_graph()
     
-    def _build_graph(self) -> StateGraph:
+    def _build_graph(self):
         """Build the execution graph"""
         workflow = StateGraph(TinkerState)
         
@@ -29,9 +29,26 @@ class TinkerWorkflow:
         workflow.add_node("tool_executor", self.nodes.tool_executor_node)
         workflow.add_node("completion", self.nodes.completion_node)
         
-        # Define edges
+        # Define edges with conditional logic
         workflow.set_entry_point("task_analyzer")
-        workflow.add_edge("task_analyzer", "tool_executor")
+        
+        # Conditional edge: only go to tool_executor if tools are planned
+        def should_execute_tools(state: TinkerState) -> str:
+            """Decide whether to execute tools or skip to completion"""
+            planned_tools = state.get("planned_tools", [])
+            if planned_tools and len(planned_tools) > 0:
+                return "tool_executor"
+            else:
+                return "completion"
+        
+        workflow.add_conditional_edges(
+            "task_analyzer",
+            should_execute_tools,
+            {
+                "tool_executor": "tool_executor",
+                "completion": "completion"
+            }
+        )
         workflow.add_edge("tool_executor", "completion")
         workflow.add_edge("completion", END)
         
