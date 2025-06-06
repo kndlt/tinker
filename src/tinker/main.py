@@ -44,8 +44,20 @@ def process_task_langgraph(task_content: str):
             for i, tool_result in enumerate(result['tool_results'], 1):
                 print(f"  {i}. {tool_result.get('tool_name', 'Unknown')}:")
                 if 'result' in tool_result:
-                    output = tool_result['result'].get('output', 'No output')
-                    print(f"     {output[:200]}{'...' if len(output) > 200 else ''}")
+                    tool_output = tool_result['result']
+                    if isinstance(tool_output, dict):
+                        # Handle structured tool output
+                        if 'stdout' in tool_output and tool_output['stdout']:
+                            print(f"     Output: {tool_output['stdout'][:200]}{'...' if len(tool_output['stdout']) > 200 else ''}")
+                        elif 'output' in tool_output:
+                            print(f"     Output: {tool_output['output'][:200]}{'...' if len(tool_output['output']) > 200 else ''}")
+                        else:
+                            print(f"     Success: {tool_output.get('success', 'Unknown')}")
+                        
+                        if 'stderr' in tool_output and tool_output['stderr']:
+                            print(f"     Error: {tool_output['stderr'][:200]}{'...' if len(tool_output['stderr']) > 200 else ''}")
+                    else:
+                        print(f"     {str(tool_output)[:200]}{'...' if len(str(tool_output)) > 200 else ''}")
         
         print(f"✅ LangGraph task completed successfully")
         
