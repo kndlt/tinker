@@ -50,65 +50,65 @@ def interactive_chat_mode():
                     print("🆕 Memory cleared! Starting fresh conversation...")
                 continue
                 
-            # Handle continuous mode
-            if user_input.lower().startswith('/continuous ') or user_input.lower().startswith('/loop '):
-                goal = user_input.split(' ', 1)[1] if ' ' in user_input else ""
-                if goal:
-                    print(f"🔄 Starting continuous reasoning loop for: {goal}")
-                    from .continuous_agent_workflow import ContinuousAgentWorkflow
-                    continuous_workflow = ContinuousAgentWorkflow()
-                    result = continuous_workflow.run_continuous_task(goal, max_iterations=10)
+            # Handle legacy single-pass mode (opt-in)
+            if user_input.lower().startswith('/simple ') or user_input.lower().startswith('/single '):
+                task = user_input.split(' ', 1)[1] if ' ' in user_input else ""
+                if task:
+                    print(f"🔗 Using single-pass mode for: {task}")
+                    result = workflow.execute_task(task)
                     
-                    # Display the reasoning process
-                    for msg in result['messages']:
-                        if hasattr(msg, 'content'):
-                            content = str(msg.content)
-                            if "[THINKING]" in content:
-                                print(f"\n💭 {content.replace('[THINKING] ', '')}")
-                            elif "[ACTION]" in content:
-                                print(f"⚡ {content.replace('[ACTION] ', '')}")
-                            elif "[OBSERVE]" in content:
-                                print(f"👁️  {content.replace('[OBSERVE] ', '')}")
-                            elif "[DECIDE]" in content:
-                                print(f"🎯 {content.replace('[DECIDE] ', '')}")
-                            elif "[ERROR]" in content:
-                                print(f"❌ {content.replace('[ERROR] ', '')}")
+                    # Display AI responses naturally in gray
+                    conversation_history = result.get('conversation_history', [])
+                    for msg in conversation_history:
+                        if hasattr(msg, 'content') and msg.content:
+                            if hasattr(msg, '__class__') and 'AI' in msg.__class__.__name__:
+                                content = str(msg.content)
+                                if not content.startswith("Task completed successfully") and not content.startswith("Executed"):
+                                    print(f"\033[90m{content}\033[0m")
                     
-                    print(f"\n✅ Loop completed: {result.get('exit_reason', 'Done')}")
+                    # Display remaining tool output
+                    remaining_output = result.get('remaining_output', {})
+                    if remaining_output:
+                        for output in remaining_output.values():
+                            if output.strip():
+                                print(output.strip())
+                    
+                    # Only display stderr from tool results
+                    if result.get('tool_results'):
+                        for tool_result in result['tool_results']:
+                            tool_output = tool_result.get('result', {})
+                            if isinstance(tool_output, dict):
+                                if 'stderr' in tool_output and tool_output['stderr'].strip():
+                                    print(f"Error: {tool_output['stderr'].strip()}")
                 else:
-                    print("❌ Please provide a goal. Usage: /continuous <goal>")
+                    print("❌ Please provide a task. Usage: /simple <task>")
                 continue
                 
-            # Process the input as a conversation
+            # Process all input as continuous reasoning (DEFAULT)
             try:
-                result = workflow.execute_task(user_input)
+                print(f"\033[90m🔄 Starting continuous reasoning...\033[0m")
+                from .continuous_agent_workflow import ContinuousAgentWorkflow
+                continuous_workflow = ContinuousAgentWorkflow()
+                result = continuous_workflow.run_continuous_task(user_input, max_iterations=10)
                 
-                # Display AI responses naturally in gray
-                conversation_history = result.get('conversation_history', [])
-                for msg in conversation_history:
-                    if hasattr(msg, 'content') and msg.content:
-                        if hasattr(msg, '__class__') and 'AI' in msg.__class__.__name__:
-                            content = str(msg.content)
-                            if not content.startswith("Task completed successfully") and not content.startswith("Executed"):
-                                # Print in gray color
-                                print(f"\033[90m{content}\033[0m")
+                # Display the reasoning process with better formatting
+                for msg in result['messages']:
+                    if hasattr(msg, 'content'):
+                        content = str(msg.content)
+                        if "[THINKING]" in content:
+                            print(f"\n\033[95m💭 {content.replace('[THINKING] ', '')}\033[0m")
+                        elif "[ACTION]" in content:
+                            print(f"\033[94m⚡ {content.replace('[ACTION] ', '')}\033[0m")
+                        elif "[OBSERVE]" in content:
+                            print(f"\033[92m👁️  {content.replace('[OBSERVE] ', '')}\033[0m")
+                        elif "[DECIDE]" in content:
+                            print(f"\033[93m🎯 {content.replace('[DECIDE] ', '')}\033[0m")
+                        elif "[ERROR]" in content:
+                            print(f"\033[91m❌ {content.replace('[ERROR] ', '')}\033[0m")
+                        elif not content.startswith("Starting continuous") and not content.startswith("Completed after"):
+                            print(f"\033[90m{content}\033[0m")
                 
-                # Display remaining tool output (what wasn't included inline)
-                remaining_output = result.get('remaining_output', {})
-                if remaining_output:
-                    for timestamp, output in remaining_output.items():
-                        if output.strip():
-                            print(output.strip())
-                
-                # Don't display tool stdout - it should be handled inline or in remaining_output
-                # Only display stderr from tool results
-                if result.get('tool_results'):
-                    for tool_result in result['tool_results']:
-                        tool_output = tool_result.get('result', {})
-                        if isinstance(tool_output, dict):
-                            # Only show stderr - all stdout should be handled inline or remaining
-                            if 'stderr' in tool_output and tool_output['stderr'].strip():
-                                print(f"Error: {tool_output['stderr'].strip()}")
+                print(f"\n\033[92m✅ Reasoning completed: {result.get('exit_reason', 'Done')}\033[0m")
                         
             except Exception as e:
                 print(f"❌ Error: {e}")
@@ -117,50 +117,31 @@ def interactive_chat_mode():
         print("\n👋 Goodbye!")
 
 def single_task_mode(task_content):
-    """Process a single task (for backward compatibility)"""
-    from .langgraph_workflow import TinkerWorkflow
-    from .checkpoint_manager import TinkerCheckpointManager
+    """Process a single task using continuous reasoning"""
+    print(f"\033[90m🔄 Processing task with continuous reasoning...\033[0m")
     
-    # Initialize LangGraph components without announcing it
-    checkpoint_manager = TinkerCheckpointManager()
-    workflow = TinkerWorkflow(checkpoint_manager)
+    from .continuous_agent_workflow import ContinuousAgentWorkflow
+    continuous_workflow = ContinuousAgentWorkflow()
+    result = continuous_workflow.run_continuous_task(task_content, max_iterations=10)
     
-    # Execute task with persistent memory
-    result = workflow.execute_task(task_content, use_persistent_memory=True)
+    # Display the reasoning process
+    for msg in result['messages']:
+        if hasattr(msg, 'content'):
+            content = str(msg.content)
+            if "[THINKING]" in content:
+                print(f"\n\033[95m💭 {content.replace('[THINKING] ', '')}\033[0m")
+            elif "[ACTION]" in content:
+                print(f"\033[94m⚡ {content.replace('[ACTION] ', '')}\033[0m")
+            elif "[OBSERVE]" in content:
+                print(f"\033[92m👁️  {content.replace('[OBSERVE] ', '')}\033[0m")
+            elif "[DECIDE]" in content:
+                print(f"\033[93m🎯 {content.replace('[DECIDE] ', '')}\033[0m")
+            elif "[ERROR]" in content:
+                print(f"\033[91m❌ {content.replace('[ERROR] ', '')}\033[0m")
+            elif not content.startswith("Starting continuous") and not content.startswith("Completed after"):
+                print(f"\033[90m{content}\033[0m")
     
-    # Display AI responses naturally
-    conversation_history = result.get('conversation_history', [])
-    has_tool_results = bool(result.get('tool_results'))
-    
-    ai_responses = []
-    for msg in conversation_history:
-        if hasattr(msg, 'content') and msg.content:
-            if hasattr(msg, '__class__') and 'AI' in msg.__class__.__name__:
-                content = str(msg.content)
-                if not content.startswith("Task completed successfully") and not content.startswith("Executed"):
-                    ai_responses.append(content)
-    
-    # Show AI responses conversationally in gray
-    for response in ai_responses:
-        print(f"\033[90m{response}\033[0m")
-    
-    # Display remaining tool output (what wasn't included inline)
-    remaining_output = result.get('remaining_output', {})
-    if remaining_output:
-        for output in remaining_output.values():
-            if output.strip():
-                print(output.strip())
-    
-    # Don't display tool stdout - it should be handled inline or in remaining_output
-    # Only display stderr from tool results
-    if result.get('tool_results'):
-        for tool_result in result['tool_results']:
-            if 'result' in tool_result:
-                tool_output = tool_result['result']
-                if isinstance(tool_output, dict):
-                    # Only show stderr - all stdout should be handled inline or remaining
-                    if 'stderr' in tool_output and tool_output['stderr'].strip():
-                        print(f"Error: {tool_output['stderr'].strip()}")
+    print(f"\n\033[92m✅ Task completed: {result.get('exit_reason', 'Done')}\033[0m")
 
 
 

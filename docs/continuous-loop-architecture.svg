@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="900" height="700" xmlns="http://www.w3.org/2000/svg">
+  <!-- Title -->
+  <text x="450" y="30" text-anchor="middle" font-size="24" font-weight="bold" fill="#333">Tinker Continuous Loop Architecture</text>
+  
+  <!-- Define patterns and gradients -->
+  <defs>
+    <linearGradient id="thinkGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#9c27b0;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7b1fa2;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="actGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#2196f3;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1976d2;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="observeGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#4caf50;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#388e3c;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="decideGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff9800;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f57c00;stop-opacity:1" />
+    </linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#666" />
+    </marker>
+  </defs>
+  
+  <!-- Main Loop Circle -->
+  <circle cx="450" cy="350" r="200" fill="none" stroke="#666" stroke-width="3" stroke-dasharray="10,5"/>
+  <text x="450" y="350" text-anchor="middle" font-size="20" font-weight="bold" fill="#666">Continuous</text>
+  <text x="450" y="375" text-anchor="middle" font-size="20" font-weight="bold" fill="#666">Agent Loop</text>
+  
+  <!-- Think Node -->
+  <rect x="350" y="100" width="200" height="80" rx="10" fill="url(#thinkGradient)" stroke="#7b1fa2" stroke-width="2"/>
+  <text x="450" y="130" text-anchor="middle" fill="white" font-size="18" font-weight="bold">THINK</text>
+  <text x="450" y="150" text-anchor="middle" fill="white" font-size="12">Reason about goal</text>
+  <text x="450" y="165" text-anchor="middle" fill="white" font-size="12">Plan next steps</text>
+  
+  <!-- Act Node -->
+  <rect x="600" y="250" width="200" height="80" rx="10" fill="url(#actGradient)" stroke="#1976d2" stroke-width="2"/>
+  <text x="700" y="280" text-anchor="middle" fill="white" font-size="18" font-weight="bold">ACT</text>
+  <text x="700" y="300" text-anchor="middle" fill="white" font-size="12">Execute tools</text>
+  <text x="700" y="315" text-anchor="middle" fill="white" font-size="12">Gather information</text>
+  
+  <!-- Observe Node -->
+  <rect x="350" y="450" width="200" height="80" rx="10" fill="url(#observeGradient)" stroke="#388e3c" stroke-width="2"/>
+  <text x="450" y="480" text-anchor="middle" fill="white" font-size="18" font-weight="bold">OBSERVE</text>
+  <text x="450" y="500" text-anchor="middle" fill="white" font-size="12">Analyze results</text>
+  <text x="450" y="515" text-anchor="middle" fill="white" font-size="12">Update understanding</text>
+  
+  <!-- Decide Node -->
+  <rect x="100" y="250" width="200" height="80" rx="10" fill="url(#decideGradient)" stroke="#f57c00" stroke-width="2"/>
+  <text x="200" y="280" text-anchor="middle" fill="white" font-size="18" font-weight="bold">DECIDE</text>
+  <text x="200" y="300" text-anchor="middle" fill="white" font-size="12">Goal achieved?</text>
+  <text x="200" y="315" text-anchor="middle" fill="white" font-size="12">Need more info?</text>
+  
+  <!-- Arrows showing loop -->
+  <path d="M 520,180 Q 650,200 650,250" stroke="#666" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M 700,330 Q 700,400 550,450" stroke="#666" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M 350,490 Q 250,450 200,330" stroke="#666" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M 200,250 Q 300,150 350,140" stroke="#666" stroke-width="3" marker-end="url(#arrow)"/>
+  
+  <!-- Exit conditions -->
+  <rect x="30" y="30" width="200" height="100" fill="#ffebee" stroke="#f44336" stroke-width="1" rx="5"/>
+  <text x="130" y="50" text-anchor="middle" font-size="14" font-weight="bold" fill="#c62828">Exit Conditions</text>
+  <text x="40" y="70" font-size="11" fill="#666">• Goal achieved</text>
+  <text x="40" y="85" font-size="11" fill="#666">• Max iterations reached</text>
+  <text x="40" y="100" font-size="11" fill="#666">• User interruption</text>
+  <text x="40" y="115" font-size="11" fill="#666">• Unrecoverable error</text>
+  
+  <!-- State maintained across loop -->
+  <rect x="670" y="30" width="200" height="120" fill="#e8f5e9" stroke="#4caf50" stroke-width="1" rx="5"/>
+  <text x="770" y="50" text-anchor="middle" font-size="14" font-weight="bold" fill="#2e7d32">Loop State</text>
+  <text x="680" y="70" font-size="11" fill="#666">• Current goal</text>
+  <text x="680" y="85" font-size="11" fill="#666">• Progress made</text>
+  <text x="680" y="100" font-size="11" fill="#666">• Knowledge gathered</text>
+  <text x="680" y="115" font-size="11" fill="#666">• Next actions queue</text>
+  <text x="680" y="130" font-size="11" fill="#666">• Iteration count</text>
+  
+  <!-- Example flow -->
+  <rect x="30" y="550" width="840" height="120" fill="#f5f5f5" stroke="#9e9e9e" stroke-width="1" rx="5"/>
+  <text x="450" y="570" text-anchor="middle" font-size="14" font-weight="bold" fill="#616161">Example: "Debug why the server is crashing"</text>
+  <text x="40" y="590" font-size="11" fill="#666">1. THINK: "I need to check server logs and system resources"</text>
+  <text x="40" y="605" font-size="11" fill="#666">2. ACT: Run `tail -f server.log` and `htop`</text>
+  <text x="40" y="620" font-size="11" fill="#666">3. OBSERVE: "Seeing OOM errors in logs, memory usage is high"</text>
+  <text x="40" y="635" font-size="11" fill="#666">4. DECIDE: "Need more info about what's consuming memory"</text>
+  <text x="40" y="650" font-size="11" fill="#666">5. THINK: "Let me check for memory leaks in the application..." → (continues)</text>
+  
+  <!-- Tool calls as side effects -->
+  <g transform="translate(700, 380)">
+    <rect x="-60" y="0" width="120" height="60" fill="#e1f5fe" stroke="#0288d1" stroke-width="1" rx="3"/>
+    <text x="0" y="20" text-anchor="middle" font-size="11" font-weight="bold" fill="#01579b">Tool Calls</text>
+    <text x="0" y="35" text-anchor="middle" font-size="10" fill="#666">• Queries</text>
+    <text x="0" y="48" text-anchor="middle" font-size="10" fill="#666">• Side effects</text>
+  </g>
+  
+  <!-- Arrow from ACT to Tool Calls -->
+  <path d="M 700,330 L 700,380" stroke="#0288d1" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="5,3"/>
+</svg>

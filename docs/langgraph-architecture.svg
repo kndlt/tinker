@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+  <!-- Title -->
+  <text x="400" y="30" text-anchor="middle" font-size="24" font-weight="bold" fill="#333">Tinker LangGraph Architecture</text>
+  
+  <!-- Define gradients for better visual appeal -->
+  <defs>
+    <linearGradient id="nodeGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#4a90e2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#357abd;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="startGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#5cb85c;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#4cae4c;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="endGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#d9534f;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#c9302c;stop-opacity:1" />
+    </linearGradient>
+    <!-- Arrow marker -->
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#666" />
+    </marker>
+  </defs>
+  
+  <!-- Start Node -->
+  <circle cx="400" cy="80" r="30" fill="url(#startGradient)" stroke="#4cae4c" stroke-width="2"/>
+  <text x="400" y="85" text-anchor="middle" fill="white" font-size="14" font-weight="bold">START</text>
+  
+  <!-- Task Analyzer Node -->
+  <rect x="300" y="150" width="200" height="80" rx="10" fill="url(#nodeGradient)" stroke="#357abd" stroke-width="2"/>
+  <text x="400" y="180" text-anchor="middle" fill="white" font-size="16" font-weight="bold">Task Analyzer</text>
+  <text x="400" y="200" text-anchor="middle" fill="white" font-size="12">• Analyzes user input</text>
+  <text x="400" y="215" text-anchor="middle" fill="white" font-size="12">• Decides tools to use</text>
+  
+  <!-- Decision Diamond -->
+  <g transform="translate(400, 280)">
+    <path d="M 0,-30 L 30,0 L 0,30 L -30,0 Z" fill="#f0ad4e" stroke="#eea236" stroke-width="2"/>
+    <text x="0" y="5" text-anchor="middle" fill="white" font-size="12" font-weight="bold">Tools?</text>
+  </g>
+  
+  <!-- Tool Executor Node -->
+  <rect x="300" y="350" width="200" height="100" rx="10" fill="url(#nodeGradient)" stroke="#357abd" stroke-width="2"/>
+  <text x="400" y="380" text-anchor="middle" fill="white" font-size="16" font-weight="bold">Tool Executor</text>
+  <text x="400" y="400" text-anchor="middle" fill="white" font-size="12">• Executes commands</text>
+  <text x="400" y="415" text-anchor="middle" fill="white" font-size="12">• Collects stdout/stderr</text>
+  <text x="400" y="430" text-anchor="middle" fill="white" font-size="12">• AI analyzes results</text>
+  
+  <!-- Completion Node -->
+  <rect x="300" y="490" width="200" height="60" rx="10" fill="url(#nodeGradient)" stroke="#357abd" stroke-width="2"/>
+  <text x="400" y="515" text-anchor="middle" fill="white" font-size="16" font-weight="bold">Completion</text>
+  <text x="400" y="535" text-anchor="middle" fill="white" font-size="12">• Marks as completed</text>
+  
+  <!-- End Node -->
+  <circle cx="400" cy="590" r="20" fill="url(#endGradient)" stroke="#c9302c" stroke-width="2"/>
+  <text x="400" y="595" text-anchor="middle" fill="white" font-size="12" font-weight="bold">END</text>
+  
+  <!-- Arrows/Edges -->
+  <!-- Start to Task Analyzer -->
+  <line x1="400" y1="110" x2="400" y2="150" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Task Analyzer to Decision -->
+  <line x1="400" y1="230" x2="400" y2="250" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Decision to Tool Executor (Yes) -->
+  <line x1="400" y1="310" x2="400" y2="350" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="410" y="330" fill="#666" font-size="12">Yes</text>
+  
+  <!-- Decision to Completion (No) -->
+  <path d="M 370,280 Q 250,280 250,520 L 300,520" fill="none" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="250" y="275" fill="#666" font-size="12">No</text>
+  
+  <!-- Tool Executor to Completion -->
+  <line x1="400" y1="450" x2="400" y2="490" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Completion to End -->
+  <line x1="400" y1="550" x2="400" y2="570" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Side annotations -->
+  <rect x="550" y="150" width="220" height="120" fill="#f8f9fa" stroke="#dee2e6" stroke-width="1" rx="5"/>
+  <text x="560" y="170" font-size="14" font-weight="bold" fill="#333">State Management</text>
+  <text x="560" y="190" font-size="12" fill="#666">• conversation_history</text>
+  <text x="560" y="205" font-size="12" fill="#666">• planned_tools</text>
+  <text x="560" y="220" font-size="12" fill="#666">• tool_results</text>
+  <text x="560" y="235" font-size="12" fill="#666">• pending_ai_response</text>
+  <text x="560" y="250" font-size="12" fill="#666">• remaining_output</text>
+  
+  <rect x="30" y="150" width="220" height="100" fill="#f8f9fa" stroke="#dee2e6" stroke-width="1" rx="5"/>
+  <text x="40" y="170" font-size="14" font-weight="bold" fill="#333">Key Features</text>
+  <text x="40" y="190" font-size="12" fill="#666">• Persistent memory</text>
+  <text x="40" y="205" font-size="12" fill="#666">• Tool execution waits</text>
+  <text x="40" y="220" font-size="12" fill="#666">• AI analyzes all output</text>
+  <text x="40" y="235" font-size="12" fill="#666">• Natural responses</text>
+  
+  <!-- Flow description -->
+  <rect x="30" y="350" width="220" height="150" fill="#e8f4f8" stroke="#b8e0e8" stroke-width="1" rx="5"/>
+  <text x="40" y="370" font-size="14" font-weight="bold" fill="#333">Execution Flow</text>
+  <text x="40" y="390" font-size="11" fill="#666">1. User provides input</text>
+  <text x="40" y="405" font-size="11" fill="#666">2. AI analyzes and plans tools</text>
+  <text x="40" y="420" font-size="11" fill="#666">3. If tools needed:</text>
+  <text x="45" y="435" font-size="11" fill="#666">  - Execute commands</text>
+  <text x="45" y="450" font-size="11" fill="#666">  - AI sees ALL output</text>
+  <text x="45" y="465" font-size="11" fill="#666">  - Generate response</text>
+  <text x="40" y="480" font-size="11" fill="#666">4. Complete workflow</text>
+</svg>
