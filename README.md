@@ -100,3 +100,19 @@ Type any of these to exit:
 - `bye`
 - Ctrl+C
 
+## Persistent Memory
+
+Tinker remembers your conversations across sessions! When you restart Tinker, it will continue from where you left off, maintaining context about:
+
+- Previous questions and answers
+- Tasks you've completed
+- Code you've been working on
+- Project context and history
+
+The conversation history is stored in `.tinker/memory.db` and automatically loads when you start Tinker.
+
+### Memory Indicators
+
+- 🆕 **Starting new conversation...** - First time using Tinker
+- 🧠 **Continuing previous conversation...** - Resuming from previous session
+
