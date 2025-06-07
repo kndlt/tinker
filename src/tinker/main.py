@@ -45,14 +45,15 @@ def interactive_chat_mode():
             try:
                 result = workflow.execute_task(user_input)
                 
-                # Display AI responses naturally
+                # Display AI responses naturally in gray
                 conversation_history = result.get('conversation_history', [])
                 for msg in conversation_history:
                     if hasattr(msg, 'content') and msg.content:
                         if hasattr(msg, '__class__') and 'AI' in msg.__class__.__name__:
                             content = str(msg.content)
                             if not content.startswith("Task completed successfully") and not content.startswith("Executed"):
-                                print(content)
+                                # Print in gray color
+                                print(f"\033[90m{content}\033[0m")
                 
                 # Display tool output naturally
                 if result.get('tool_results'):
@@ -101,9 +102,9 @@ def single_task_mode(task_content):
                 if not content.startswith("Task completed successfully") and not content.startswith("Executed"):
                     ai_responses.append(content)
     
-    # Show AI responses conversationally
+    # Show AI responses conversationally in gray
     for response in ai_responses:
-        print(response)
+        print(f"\033[90m{response}\033[0m")
     
     # Show tool output naturally, without technical headers
     if result.get('tool_results'):
