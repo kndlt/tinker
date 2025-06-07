@@ -27,6 +27,7 @@ class TinkerLangGraphNodes:
         
         # Use Anthropic Claude to analyze the task and decide what to do
         planned_tools = []
+        pending_ai_response = ""
         try:
             import anthropic
             import os
@@ -104,10 +105,6 @@ BE CONVERSATIONAL! You should chat naturally with users like GitHub Copilot. Ans
                         # Skip tool_use and other non-text blocks for conversational response
                     response_text = response_text.strip()
                     
-                    # Add AI response to conversation first
-                    ai_response = AIMessage(content=response_text)
-                    conversation_history.append(ai_response)
-                    
                     # Check if this is purely conversational or if Claude is suggesting actions
                     # Be very conservative - only detect clear action patterns
                     needs_shell_execution = any([
@@ -172,6 +169,10 @@ Please provide only the shell command, or respond "NO_COMMAND" if no command is 
                         # This is purely conversational, no tools needed
                         planned_tools = []
                     
+                    # Store the AI response to add AFTER tools complete (if any)
+                    pending_ai_response = response_text
+                    
+                    
                 except Exception as e:
                     # Fallback if Claude API fails
                     planned_tools.append({
@@ -205,6 +206,7 @@ Please provide only the shell command, or respond "NO_COMMAND" if no command is 
         updated_state = state.copy()
         updated_state["conversation_history"] = conversation_history
         updated_state["planned_tools"] = planned_tools
+        updated_state["pending_ai_response"] = pending_ai_response
         updated_state["execution_status"] = "analyzing" 
         updated_state["resumption_point"] = "task_analyzed"
         
@@ -258,11 +260,13 @@ Please provide only the shell command, or respond "NO_COMMAND" if no command is 
         updated_state["execution_status"] = "executing"
         updated_state["resumption_point"] = "tools_executed"
         
-        # Add AI response to conversation
-        ai_message = AIMessage(content=f"Executed {len(planned_tools)} planned tools")
-        conversation_history = updated_state.get("conversation_history", [])
-        conversation_history.append(ai_message)
-        updated_state["conversation_history"] = conversation_history
+        # Now add the AI response after tools are complete
+        pending_ai_response = updated_state.get("pending_ai_response", "")
+        if pending_ai_response:
+            ai_message = AIMessage(content=pending_ai_response)
+            conversation_history = updated_state.get("conversation_history", [])
+            conversation_history.append(ai_message)
+            updated_state["conversation_history"] = conversation_history
         
         return updated_state
     
@@ -272,10 +276,12 @@ Please provide only the shell command, or respond "NO_COMMAND" if no command is 
         updated_state["execution_status"] = "completed"
         updated_state["resumption_point"] = "completed"
         
-        # Add completion message
-        completion_message = AIMessage(content="Task completed successfully via LangGraph workflow.")
-        conversation_history = updated_state.get("conversation_history", [])
-        conversation_history.append(completion_message)
-        updated_state["conversation_history"] = conversation_history
+        # If this is purely conversational (no tools), add the AI response here
+        pending_ai_response = updated_state.get("pending_ai_response", "")
+        if pending_ai_response and not updated_state.get("tool_results"):
+            ai_message = AIMessage(content=pending_ai_response)
+            conversation_history = updated_state.get("conversation_history", [])
+            conversation_history.append(ai_message)
+            updated_state["conversation_history"] = conversation_history
         
         return updated_state
