@@ -9,6 +9,9 @@ Tinker is an interactive AI agent that helps you with development tasks. Chat na
 3. It's container-native and non-consensual.
 4. It orchestrates across multiple AI vendors.
 5. It’s not meant for users.
+6. Tinker is an autonomous agent that orchestrates and leverages existing copilots like Claude Code and GitHub Copilot, instead of competing with them.
+7. It doesn’t just execute. It inspires, imagines, and orchestrates.
+8. While most agents mimic others, Tinker redirects the flow toward creative and purposeful outcomes.
 
 ## Setup
 
