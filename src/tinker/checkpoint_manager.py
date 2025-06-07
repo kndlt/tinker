@@ -129,3 +129,38 @@ class TinkerCheckpointManager:
     def get_checkpointer(self) -> SqliteSaver:
         """Get the LangGraph checkpointer instance"""
         return self.checkpointer
+    
+    def get_main_thread_id(self) -> str:
+        """Get or create the main conversation thread ID"""
+        return "tinker_main_conversation"
+    
+    def get_conversation_history(self, thread_id: str) -> List[Dict[str, Any]]:
+        """Get conversation history from checkpoints"""
+        try:
+            # Get the latest state from checkpointer
+            config = {"configurable": {"thread_id": thread_id}}
+            state_snapshot = self.checkpointer.get(config)
+            
+            if state_snapshot and state_snapshot.values:
+                conversation_history = state_snapshot.values.get("conversation_history", [])
+                # Convert LangChain messages to dictionaries for easier handling
+                history_data = []
+                for msg in conversation_history:
+                    if hasattr(msg, 'content') and hasattr(msg, '__class__'):
+                        history_data.append({
+                            'type': msg.__class__.__name__,
+                            'content': str(msg.content)
+                        })
+                return history_data
+            return []
+        except Exception:
+            return []
+    
+    def has_existing_conversation(self, thread_id: str) -> bool:
+        """Check if there's an existing conversation for this thread"""
+        try:
+            config = {"configurable": {"thread_id": thread_id}}
+            state_snapshot = self.checkpointer.get(config)
+            return state_snapshot is not None and state_snapshot.values is not None
+        except Exception:
+            return False

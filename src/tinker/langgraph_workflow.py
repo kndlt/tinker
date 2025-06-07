@@ -58,14 +58,71 @@ class TinkerWorkflow:
             # Remove interrupt_before for Phase 5.1 testing
         )
     
-    def execute_task(self, task_content: str, thread_id: Optional[str] = None) -> TinkerState:
+    def execute_task(self, task_content: str, thread_id: Optional[str] = None, use_persistent_memory: bool = True) -> TinkerState:
         """Execute a task using the LangGraph workflow"""
         if not thread_id:
-            thread_id = str(uuid.uuid4())
+            if use_persistent_memory:
+                thread_id = self.checkpoint_manager.get_main_thread_id()
+            else:
+                thread_id = str(uuid.uuid4())
         
         # Create session record
         self.checkpoint_manager.create_session(thread_id, task_content[:100])
         
+        config = {"configurable": {"thread_id": thread_id}}
+        
+        # Check if this is continuing an existing conversation
+        has_existing = self.checkpoint_manager.has_existing_conversation(thread_id)
+        
+        if has_existing:
+            try:
+                # Continue from existing conversation
+                from langchain_core.messages import HumanMessage
+                new_message = HumanMessage(content=task_content)
+                
+                # Get current state and add new message
+                state_snapshot = self.checkpoint_manager.checkpointer.get(config)
+                if state_snapshot and state_snapshot.values:
+                    current_state = state_snapshot.values.copy()
+                    conversation_history = current_state.get("conversation_history", [])
+                    conversation_history.append(new_message)
+                    current_state["conversation_history"] = conversation_history
+                    current_state["task_content"] = task_content
+                    current_state["execution_status"] = "running"
+                    current_state["tool_results"] = []
+                    current_state["planned_tools"] = []
+                    
+                    result = self.graph.invoke(current_state, config=config)
+                else:
+                    # Fallback to new conversation
+                    result = self._execute_new_conversation(task_content, thread_id, config)
+            except Exception as e:
+                # Fallback to new conversation on error
+                result = self._execute_new_conversation(task_content, thread_id, config)
+        else:
+            # Start new conversation
+            result = self._execute_new_conversation(task_content, thread_id, config)
+        
+        try:
+            self.checkpoint_manager.update_session_access(thread_id)
+            return result
+        except Exception as e:
+            # Handle execution errors
+            error_state = TinkerState(
+                task_content=task_content,
+                conversation_history=[],
+                tool_results=[],
+                planned_tools=[],
+                current_directory="/workspace",
+                resumption_point=f"error: {str(e)}",
+                thread_id=thread_id,
+                tinker_checkpoint_id=None,
+                execution_status="failed"
+            )
+            return error_state
+    
+    def _execute_new_conversation(self, task_content: str, thread_id: str, config: dict) -> TinkerState:
+        """Execute a new conversation"""
         initial_state = TinkerState(
             task_content=task_content,
             conversation_history=[],
@@ -78,18 +135,7 @@ class TinkerWorkflow:
             execution_status="running"
         )
         
-        config = {"configurable": {"thread_id": thread_id}}
-        
-        try:
-            result = self.graph.invoke(initial_state, config=config)
-            self.checkpoint_manager.update_session_access(thread_id)
-            return result
-        except Exception as e:
-            # Handle execution errors
-            error_state = initial_state.copy()
-            error_state["execution_status"] = "failed"
-            error_state["resumption_point"] = f"error: {str(e)}"
-            return error_state
+        return self.graph.invoke(initial_state, config=config)
     
     def resume_task(self, thread_id: str, checkpoint_id: Optional[str] = None) -> TinkerState:
         """Resume a task from a checkpoint"""

@@ -17,6 +17,13 @@ def interactive_chat_mode():
     checkpoint_manager = TinkerCheckpointManager()
     workflow = TinkerWorkflow(checkpoint_manager)
     
+    # Check for existing conversation
+    main_thread_id = checkpoint_manager.get_main_thread_id()
+    if checkpoint_manager.has_existing_conversation(main_thread_id):
+        print("🧠 Continuing previous conversation...")
+    else:
+        print("🆕 Starting new conversation...")
+    
     try:
         while True:
             # Get user input
@@ -79,8 +86,8 @@ def single_task_mode(task_content):
     checkpoint_manager = TinkerCheckpointManager()
     workflow = TinkerWorkflow(checkpoint_manager)
     
-    # Execute task
-    result = workflow.execute_task(task_content)
+    # Execute task with persistent memory
+    result = workflow.execute_task(task_content, use_persistent_memory=True)
     
     # Display AI responses naturally
     conversation_history = result.get('conversation_history', [])
