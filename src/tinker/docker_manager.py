@@ -31,9 +31,6 @@ def container_running():
 
 def start_container():
     ensure_tinker_dir()
-    # Create workspace directory
-    tinker_workspace_dir = os.path.join(TINKER_DIR, "workspace")
-    os.makedirs(tinker_workspace_dir, exist_ok=True)
     
     container_was_created = False
     

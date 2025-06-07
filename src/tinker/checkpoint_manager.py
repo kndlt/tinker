@@ -21,7 +21,6 @@ class TinkerCheckpointManager:
         self._ensure_directory()
         # Use SQLiteSaver for Phase 5.2 - proper persistence!
         # Use direct connection for better compatibility
-        import sqlite3
         conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self.checkpointer = SqliteSaver(conn)
         self._init_custom_tables()

@@ -50,40 +50,6 @@ def interactive_chat_mode():
                     print("🆕 Memory cleared! Starting fresh conversation...")
                 continue
                 
-            # Handle legacy single-pass mode (opt-in)
-            if user_input.lower().startswith('/simple ') or user_input.lower().startswith('/single '):
-                task = user_input.split(' ', 1)[1] if ' ' in user_input else ""
-                if task:
-                    print(f"🔗 Using single-pass mode for: {task}")
-                    result = workflow.execute_task(task)
-                    
-                    # Display AI responses naturally in gray
-                    conversation_history = result.get('conversation_history', [])
-                    for msg in conversation_history:
-                        if hasattr(msg, 'content') and msg.content:
-                            if hasattr(msg, '__class__') and 'AI' in msg.__class__.__name__:
-                                content = str(msg.content)
-                                if not content.startswith("Task completed successfully") and not content.startswith("Executed"):
-                                    print(f"\033[90m{content}\033[0m")
-                    
-                    # Display remaining tool output
-                    remaining_output = result.get('remaining_output', {})
-                    if remaining_output:
-                        for output in remaining_output.values():
-                            if output.strip():
-                                print(output.strip())
-                    
-                    # Only display stderr from tool results
-                    if result.get('tool_results'):
-                        for tool_result in result['tool_results']:
-                            tool_output = tool_result.get('result', {})
-                            if isinstance(tool_output, dict):
-                                if 'stderr' in tool_output and tool_output['stderr'].strip():
-                                    print(f"Error: {tool_output['stderr'].strip()}")
-                else:
-                    print("❌ Please provide a task. Usage: /simple <task>")
-                continue
-                
             # Process all input as continuous reasoning (DEFAULT)
             try:
                 print(f"\033[90m🔄 Starting continuous reasoning...\033[0m")
