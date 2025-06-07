@@ -282,33 +282,33 @@ Examples:
                     # Get the initial AI response for context
                     pending_ai_response = updated_state.get("pending_ai_response", "")
                     
-                    # Prepare inline output (first few lines) for AI response
-                    inline_output = ""
-                    remaining_output = {}
+                    # Give AI access to ALL tool output for analysis
+                    all_tool_output = ""
                     
                     for tool_result in tool_results:
                         result_data = tool_result.get("result", {})
                         if isinstance(result_data, dict):
+                            command = result_data.get("command", "")
                             stdout = result_data.get("stdout", "")
+                            stderr = result_data.get("stderr", "")
+                            
+                            all_tool_output += f"Command: {command}\n"
                             if stdout:
-                                lines = stdout.strip().split('\n')
-                                if len(lines) <= 5:
-                                    # Short output - include all inline
-                                    inline_output += stdout.strip() + "\n"
-                                else:
-                                    # Long output - include first 3 lines inline, save rest
-                                    inline_output += '\n'.join(lines[:3]) + "\n"
-                                    remaining_output[tool_result.get("timestamp", "unknown")] = '\n'.join(lines[3:])
+                                all_tool_output += f"Output:\n{stdout}\n"
+                            if stderr:
+                                all_tool_output += f"Error:\n{stderr}\n"
+                            all_tool_output += "\n"
+                            
+                            # Mark ALL stdout as consumed since AI will analyze it
+                            result_data["output_consumed_inline"] = True
                     
-                    # Ask AI to provide a comprehensive response with inline output
+                    # Ask AI to provide a comprehensive response analyzing all results
                     comprehensive_prompt = f"""User asked: {task_content}
 
-My initial thoughts: {pending_ai_response}
-
 Command results:
-{inline_output.strip()}
+{all_tool_output.strip()}
 
-Please provide a conversational response that incorporates these results naturally. Don't mention running commands - just analyze what we found."""
+Please provide a conversational response that analyzes these results naturally. Include relevant details from the output in your response. Don't mention that you ran commands - just provide insights based on what you found."""
 
                     response = client.messages.create(
                         model="claude-3-5-sonnet-20241022",
@@ -329,8 +329,8 @@ Please provide a conversational response that incorporates these results natural
                     conversation_history.append(ai_message)
                     updated_state["conversation_history"] = conversation_history
                     
-                    # Store remaining output for display after AI response
-                    updated_state["remaining_output"] = remaining_output
+                    # Clear remaining output since AI handles all output now
+                    updated_state["remaining_output"] = {}
                     
             except Exception as e:
                 # Fallback - use pending response if AI call fails

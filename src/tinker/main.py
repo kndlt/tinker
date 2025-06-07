@@ -62,11 +62,13 @@ def interactive_chat_mode():
                         if output.strip():
                             print(output.strip())
                 
-                # Display any stderr from tool results
+                # Don't display tool stdout - it should be handled inline or in remaining_output
+                # Only display stderr from tool results
                 if result.get('tool_results'):
                     for tool_result in result['tool_results']:
                         tool_output = tool_result.get('result', {})
                         if isinstance(tool_output, dict):
+                            # Only show stderr - all stdout should be handled inline or remaining
                             if 'stderr' in tool_output and tool_output['stderr'].strip():
                                 print(f"Error: {tool_output['stderr'].strip()}")
                         
@@ -111,12 +113,14 @@ def single_task_mode(task_content):
             if output.strip():
                 print(output.strip())
     
-    # Display any stderr from tool results
+    # Don't display tool stdout - it should be handled inline or in remaining_output
+    # Only display stderr from tool results
     if result.get('tool_results'):
         for tool_result in result['tool_results']:
             if 'result' in tool_result:
                 tool_output = tool_result['result']
                 if isinstance(tool_output, dict):
+                    # Only show stderr - all stdout should be handled inline or remaining
                     if 'stderr' in tool_output and tool_output['stderr'].strip():
                         print(f"Error: {tool_output['stderr'].strip()}")
 
