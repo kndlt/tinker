@@ -282,20 +282,33 @@ Examples:
                     # Get the initial AI response for context
                     pending_ai_response = updated_state.get("pending_ai_response", "")
                     
-                    # Ask AI to provide a comprehensive response combining context + results
+                    # Prepare inline output (first few lines) for AI response
+                    inline_output = ""
+                    remaining_output = {}
+                    
+                    for tool_result in tool_results:
+                        result_data = tool_result.get("result", {})
+                        if isinstance(result_data, dict):
+                            stdout = result_data.get("stdout", "")
+                            if stdout:
+                                lines = stdout.strip().split('\n')
+                                if len(lines) <= 5:
+                                    # Short output - include all inline
+                                    inline_output += stdout.strip() + "\n"
+                                else:
+                                    # Long output - include first 3 lines inline, save rest
+                                    inline_output += '\n'.join(lines[:3]) + "\n"
+                                    remaining_output[tool_result.get("timestamp", "unknown")] = '\n'.join(lines[3:])
+                    
+                    # Ask AI to provide a comprehensive response with inline output
                     comprehensive_prompt = f"""User asked: {task_content}
 
 My initial thoughts: {pending_ai_response}
 
-I then executed these commands:
-{tool_summary}
+Command results:
+{inline_output.strip()}
 
-Please provide a comprehensive response that:
-1. Incorporates the command results
-2. Answers the user's original question 
-3. Is conversational and natural
-
-Don't repeat that you ran commands - just provide the insights from the results."""
+Please provide a conversational response that incorporates these results naturally. Don't mention running commands - just analyze what we found."""
 
                     response = client.messages.create(
                         model="claude-3-5-sonnet-20241022",
@@ -315,6 +328,9 @@ Don't repeat that you ran commands - just provide the insights from the results.
                     ai_message = AIMessage(content=ai_response_text.strip())
                     conversation_history.append(ai_message)
                     updated_state["conversation_history"] = conversation_history
+                    
+                    # Store remaining output for display after AI response
+                    updated_state["remaining_output"] = remaining_output
                     
             except Exception as e:
                 # Fallback - use pending response if AI call fails

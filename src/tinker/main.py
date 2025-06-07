@@ -55,22 +55,20 @@ def interactive_chat_mode():
                                 # Print in gray color
                                 print(f"\033[90m{content}\033[0m")
                 
-                # Display tool output naturally
+                # Display remaining tool output (what wasn't included inline)
+                remaining_output = result.get('remaining_output', {})
+                if remaining_output:
+                    for timestamp, output in remaining_output.items():
+                        if output.strip():
+                            print(output.strip())
+                
+                # Display any stderr from tool results
                 if result.get('tool_results'):
                     for tool_result in result['tool_results']:
                         tool_output = tool_result.get('result', {})
                         if isinstance(tool_output, dict):
-                            if 'stdout' in tool_output and tool_output['stdout'].strip():
-                                print(tool_output['stdout'].strip())
-                            elif 'output' in tool_output and tool_output['output'].strip():
-                                print(tool_output['output'].strip())
-                            
                             if 'stderr' in tool_output and tool_output['stderr'].strip():
                                 print(f"Error: {tool_output['stderr'].strip()}")
-                        else:
-                            output_str = str(tool_output).strip()
-                            if output_str:
-                                print(output_str)
                         
             except Exception as e:
                 print(f"❌ Error: {e}")
@@ -106,23 +104,21 @@ def single_task_mode(task_content):
     for response in ai_responses:
         print(f"\033[90m{response}\033[0m")
     
-    # Show tool output naturally, without technical headers
+    # Display remaining tool output (what wasn't included inline)
+    remaining_output = result.get('remaining_output', {})
+    if remaining_output:
+        for output in remaining_output.values():
+            if output.strip():
+                print(output.strip())
+    
+    # Display any stderr from tool results
     if result.get('tool_results'):
         for tool_result in result['tool_results']:
             if 'result' in tool_result:
                 tool_output = tool_result['result']
                 if isinstance(tool_output, dict):
-                    if 'stdout' in tool_output and tool_output['stdout'].strip():
-                        print(tool_output['stdout'].strip())
-                    elif 'output' in tool_output and tool_output['output'].strip():
-                        print(tool_output['output'].strip())
-                    
                     if 'stderr' in tool_output and tool_output['stderr'].strip():
                         print(f"Error: {tool_output['stderr'].strip()}")
-                else:
-                    output_str = str(tool_output).strip()
-                    if output_str:
-                        print(output_str)
 
 
 

@@ -14,6 +14,7 @@ class TinkerState(TypedDict):
     tool_results: List[Dict[str, Any]]
     planned_tools: List[Dict[str, Any]]  # Tools planned by AI for execution
     pending_ai_response: Optional[str]  # AI response to add after tools complete
+    remaining_output: Optional[Dict[str, str]]  # Tool output not included inline
     current_directory: str
     resumption_point: Optional[str]
     thread_id: Optional[str]
