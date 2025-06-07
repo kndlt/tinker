@@ -2,6 +2,14 @@
 
 Tinker is an interactive AI agent that helps you with development tasks. Chat naturally with Tinker to get help with coding, debugging, file operations, and more.
 
+## Vision
+
+1. It rewrites itself.
+2. Custom built for a purpose--build Pixel.
+3. It's container-native and non-consensual.
+4. It orchestrates across multiple AI vendors.
+5. It’s not meant for users.
+
 ## Setup
 
 ### 1. Install Poetry
