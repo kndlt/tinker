@@ -164,3 +164,29 @@ class TinkerCheckpointManager:
             return state_snapshot is not None and state_snapshot.values is not None
         except Exception:
             return False
+    
+    def clear_memory(self, thread_id: Optional[str] = None) -> bool:
+        """Clear conversation memory for a specific thread or all threads"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            try:
+                if thread_id:
+                    # Clear specific thread
+                    conn.execute("DELETE FROM checkpoints WHERE thread_id = ?", (thread_id,))
+                    conn.execute("DELETE FROM tinker_sessions WHERE thread_id = ?", (thread_id,))
+                    conn.execute("DELETE FROM tinker_checkpoints_meta WHERE thread_id = ?", (thread_id,))
+                    print(f"🧹 Cleared memory for thread: {thread_id}")
+                else:
+                    # Clear all memory
+                    conn.execute("DELETE FROM checkpoints")
+                    conn.execute("DELETE FROM tinker_sessions") 
+                    conn.execute("DELETE FROM tinker_checkpoints_meta")
+                    print("🧹 Cleared all conversation memory")
+                
+                conn.commit()
+                return True
+            finally:
+                conn.close()
+        except Exception as e:
+            print(f"❌ Failed to clear memory: {e}")
+            return False

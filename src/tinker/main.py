@@ -43,6 +43,13 @@ def interactive_chat_mode():
                 print("👋 Goodbye!")
                 break
                 
+            # Handle memory clearing
+            if user_input.lower() in ['clear memory', '/clear', '/memory clear']:
+                main_thread_id = checkpoint_manager.get_main_thread_id()
+                if checkpoint_manager.clear_memory(main_thread_id):
+                    print("🆕 Memory cleared! Starting fresh conversation...")
+                continue
+                
             # Process the input as a conversation
             try:
                 result = workflow.execute_task(user_input)
