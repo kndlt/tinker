@@ -8,11 +8,12 @@ packages = [{ include = "tinker", from = "src" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"
-openai = "^1.0.0"
-anthropic = "^0.40.0"
+anthropic = "^0.52.0"
 python-dotenv = "^1.1.0"
-secure-smtplib = "^0.1.1"
 email-validator = "^2.1.0"
+langgraph = "^0.4.8"
+langchain = "^0.3.25"
+langgraph-checkpoint-sqlite = "^2.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"
