@@ -50,6 +50,35 @@ def interactive_chat_mode():
                     print("🆕 Memory cleared! Starting fresh conversation...")
                 continue
                 
+            # Handle continuous mode
+            if user_input.lower().startswith('/continuous ') or user_input.lower().startswith('/loop '):
+                goal = user_input.split(' ', 1)[1] if ' ' in user_input else ""
+                if goal:
+                    print(f"🔄 Starting continuous reasoning loop for: {goal}")
+                    from .continuous_agent_workflow import ContinuousAgentWorkflow
+                    continuous_workflow = ContinuousAgentWorkflow()
+                    result = continuous_workflow.run_continuous_task(goal, max_iterations=10)
+                    
+                    # Display the reasoning process
+                    for msg in result['messages']:
+                        if hasattr(msg, 'content'):
+                            content = str(msg.content)
+                            if "[THINKING]" in content:
+                                print(f"\n💭 {content.replace('[THINKING] ', '')}")
+                            elif "[ACTION]" in content:
+                                print(f"⚡ {content.replace('[ACTION] ', '')}")
+                            elif "[OBSERVE]" in content:
+                                print(f"👁️  {content.replace('[OBSERVE] ', '')}")
+                            elif "[DECIDE]" in content:
+                                print(f"🎯 {content.replace('[DECIDE] ', '')}")
+                            elif "[ERROR]" in content:
+                                print(f"❌ {content.replace('[ERROR] ', '')}")
+                    
+                    print(f"\n✅ Loop completed: {result.get('exit_reason', 'Done')}")
+                else:
+                    print("❌ Please provide a goal. Usage: /continuous <goal>")
+                continue
+                
             # Process the input as a conversation
             try:
                 result = workflow.execute_task(user_input)
