@@ -260,13 +260,76 @@ Please provide only the shell command, or respond "NO_COMMAND" if no command is 
         updated_state["execution_status"] = "executing"
         updated_state["resumption_point"] = "tools_executed"
         
-        # Now add the AI response after tools are complete
-        pending_ai_response = updated_state.get("pending_ai_response", "")
-        if pending_ai_response:
-            ai_message = AIMessage(content=pending_ai_response)
-            conversation_history = updated_state.get("conversation_history", [])
-            conversation_history.append(ai_message)
-            updated_state["conversation_history"] = conversation_history
+        # Generate AI response based on tool results
+        if tool_results:
+            try:
+                import anthropic
+                import os
+                
+                api_key = os.getenv("ANTHROPIC_API_KEY")
+                if api_key:
+                    client = anthropic.Anthropic(api_key=api_key)
+                    
+                    # Prepare tool results for AI analysis
+                    tool_summary = ""
+                    for tool_result in tool_results:
+                        tool_name = tool_result.get("tool_name", "unknown")
+                        result_data = tool_result.get("result", {})
+                        
+                        if isinstance(result_data, dict):
+                            command = result_data.get("command", "")
+                            stdout = result_data.get("stdout", "")
+                            stderr = result_data.get("stderr", "")
+                            success = result_data.get("success", False)
+                            
+                            tool_summary += f"Command: {command}\n"
+                            tool_summary += f"Success: {success}\n"
+                            if stdout:
+                                tool_summary += f"Output:\n{stdout}\n"
+                            if stderr:
+                                tool_summary += f"Error:\n{stderr}\n"
+                            tool_summary += "\n"
+                    
+                    # Get conversation context
+                    conversation_history = updated_state.get("conversation_history", [])
+                    task_content = updated_state.get("task_content", "")
+                    
+                    # Ask AI to respond based on tool results
+                    response = client.messages.create(
+                        model="claude-3-5-sonnet-20241022",
+                        max_tokens=500,
+                        messages=[
+                            {"role": "user", "content": f"User asked: {task_content}\n\nI executed these commands:\n{tool_summary}\n\nPlease provide a helpful response based on these results. Be conversational and natural."}
+                        ]
+                    )
+                    
+                    # Extract response
+                    ai_response_text = ""
+                    for content_block in response.content:
+                        if content_block.type == "text":
+                            ai_response_text += content_block.text
+                    
+                    # Add AI response to conversation
+                    ai_message = AIMessage(content=ai_response_text.strip())
+                    conversation_history.append(ai_message)
+                    updated_state["conversation_history"] = conversation_history
+                    
+            except Exception as e:
+                # Fallback - use pending response if AI call fails
+                pending_ai_response = updated_state.get("pending_ai_response", "")
+                if pending_ai_response:
+                    ai_message = AIMessage(content=pending_ai_response)
+                    conversation_history = updated_state.get("conversation_history", [])
+                    conversation_history.append(ai_message)
+                    updated_state["conversation_history"] = conversation_history
+        else:
+            # No tools executed - use pending response
+            pending_ai_response = updated_state.get("pending_ai_response", "")
+            if pending_ai_response:
+                ai_message = AIMessage(content=pending_ai_response)
+                conversation_history = updated_state.get("conversation_history", [])
+                conversation_history.append(ai_message)
+                updated_state["conversation_history"] = conversation_history
         
         return updated_state
     
@@ -276,12 +339,13 @@ Please provide only the shell command, or respond "NO_COMMAND" if no command is 
         updated_state["execution_status"] = "completed"
         updated_state["resumption_point"] = "completed"
         
-        # If this is purely conversational (no tools), add the AI response here
-        pending_ai_response = updated_state.get("pending_ai_response", "")
-        if pending_ai_response and not updated_state.get("tool_results"):
-            ai_message = AIMessage(content=pending_ai_response)
-            conversation_history = updated_state.get("conversation_history", [])
-            conversation_history.append(ai_message)
-            updated_state["conversation_history"] = conversation_history
+        # If this is purely conversational (no tools executed), add the pending AI response
+        if not updated_state.get("tool_results"):
+            pending_ai_response = updated_state.get("pending_ai_response", "")
+            if pending_ai_response:
+                ai_message = AIMessage(content=pending_ai_response)
+                conversation_history = updated_state.get("conversation_history", [])
+                conversation_history.append(ai_message)
+                updated_state["conversation_history"] = conversation_history
         
         return updated_state
