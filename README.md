@@ -1,6 +1,6 @@
 # Tinker Project
 
-Tinker is an autonomous AI agent that builds and maintains AI agents. Currently serving as a virtual engineer at Sprited, Tinker's main job is to build and maintain Pixel (the company's main public-facing AI).
+Tinker is an interactive AI agent that helps you with development tasks. Chat naturally with Tinker to get help with coding, debugging, file operations, and more.
 
 ## Setup
 
@@ -34,122 +34,69 @@ cd tinker
 poetry install
 ```
 
-### 4. Set up OpenAI API Key
+### 4. Set up Anthropic API Key
 
 Create a `.env` file in the project root:
 
 ```bash
-echo "OPENAI_API_KEY=your-api-key-here" > .env
+echo "ANTHROPIC_API_KEY=your-api-key-here" > .env
 ```
 
 Or set it as an environment variable:
 
 ```bash
-export OPENAI_API_KEY="your-api-key-here"
+export ANTHROPIC_API_KEY="your-api-key-here"
 ```
 
 ### 5. Run Tinker
 
+Start interactive chat mode (default):
 ```bash
 poetry run tinker
 ```
 
-Or enter Poetry shell:
+Or process a single task:
+```bash
+poetry run tinker "check the git status"
+```
 
+You can also enter Poetry shell:
 ```bash
 poetry shell
 tinker
 ```
 
-## GitHub SSH Authentication
+## Usage
 
-Tinker automatically sets up SSH authentication for GitHub when it starts for the first time. This enables secure git operations within the Docker container.
+Tinker provides an interactive chat interface where you can:
 
-### Automatic Setup
+- **Ask questions**: "What files are in this directory?"
+- **Give tasks**: "Create a new Python file called test.py"
+- **Debug issues**: "Why is my code failing?"
+- **Get help**: "How do I set up a virtual environment?"
 
-When you first run Tinker, it will:
-1. 🔑 Generate an ED25519 SSH key pair
-2. 📋 Display the public key for you to add to GitHub
-3. ⏳ Wait for you to add the key to your GitHub account
-4. 🔍 Test the SSH connection
-5. ✅ Configure git to use SSH for GitHub repositories
+### Example Session
 
-### Manual SSH Management
+```
+🧪 tinker> what's in the current directory?
+🤖 Let me check the current directory contents for you.
+🔧 Actions taken:
+   Dockerfile  README.md  config/  demo_phase_5_1.py  docker-compose.yml  docs/  ...
 
-You can also manage SSH authentication manually:
+🧪 tinker> create a simple hello world python script
+🤖 I'll create a simple "Hello World" Python script for you.
+🔧 Actions taken:
+   Created hello.py with a simple print statement
 
-```bash
-# Check SSH status
-poetry run tinker --ssh-status
-# or
-./tinker-ssh status
-
-# Setup/reset SSH authentication
-poetry run tinker --ssh-setup
-# or  
-./tinker-ssh setup
-
-# Reset and regenerate SSH keys
-poetry run tinker --ssh-reset
-# or
-./tinker-ssh reset
+🧪 tinker> exit
+👋 Goodbye!
 ```
 
-### Adding SSH Key to GitHub
+### Exit Commands
 
-1. Go to [GitHub SSH Settings](https://github.com/settings/ssh/new)
-2. Give it a title like "Tinker Docker Container"  
-3. Paste the public key that Tinker displays
-4. Click "Add SSH key"
-
-The SSH key will be stored in `.tinker/workspace/.ssh/` and is accessible at `/home/tinker/.ssh/` in the Docker container.
-
-## GitHub CLI Integration
-
-Tinker includes GitHub CLI (gh) for interacting with GitHub repositories and issues. The GitHub CLI leverages the same SSH authentication setup used for git operations.
-
-### GitHub CLI Commands
-
-```bash
-# Check GitHub CLI authentication status
-tinker --github-status
-
-# Setup GitHub CLI authentication
-tinker --github-setup
-
-# List GitHub issues for a repository
-tinker --github-issues owner/repo
-
-# Get a specific issue
-tinker --github-issue owner/repo 123
-
-# Search issues in a repository
-tinker --github-search owner/repo "bug label:urgent"
-
-# Additional options for issue commands
-tinker --github-issues owner/repo --issue-state all --issue-limit 20
-```
-
-### GitHub CLI Authentication
-
-GitHub CLI can be authenticated in two ways:
-
-1. **Personal Access Token (Recommended)**:
-   - Create a token at [GitHub Settings > Personal Access Tokens](https://github.com/settings/tokens)
-   - Required scopes: `repo`, `read:org`, `read:user`, `user:email`
-   - Add `GITHUB_TOKEN=your_token_here` to your `.env` file
-   - Restart the container: `docker compose restart`
-   - Run `tinker --github-setup` to authenticate
-
-2. **Interactive Authentication**:
-   - Run: `docker exec -it tinker_sandbox gh auth login`
-   - Follow the prompts to authenticate via web browser
-
-### GitHub CLI Features
-
-- 📋 List repository issues with filtering by state (open/closed/all)
-- 🔍 Search issues with GitHub's search syntax
-- 📖 View detailed issue information including labels and assignees  
-- 🏷️ Support for issue labels, assignees, and metadata
-- 🔗 Direct URLs to issues for easy access
+Type any of these to exit:
+- `exit`
+- `quit` 
+- `bye`
+- Ctrl+C
 
