@@ -29,7 +29,9 @@ class ContinuousAgentNodes:
             client = anthropic.Anthropic(api_key=api_key)
             
             # Build context from state
-            context = f"""Current Goal: {state['current_goal']}
+            context = f"""You are in the THINKING phase of continuous reasoning. Analyze the current situation and plan your next actions efficiently.
+
+Current Goal: {state['current_goal']}
 Iteration: {state['iteration_count']}/{state['max_iterations']}
 
 Working Memory:
@@ -44,10 +46,27 @@ Planned Actions Queue:
 Last Action: {state.get('last_action', 'None')}
 Last Result: {state.get('last_result', 'None')}
 
-Think about:
-1. What progress have we made toward the goal?
-2. What do we still need to learn or do?
-3. What should be our next action?
+Consider these key questions:
+- What is the current goal and what progress has been made?
+- What information do I have and what is still missing?
+- What are the most efficient next steps to take?
+- Are there any risks or constraints I need to consider?
+- How can I validate that I'm moving in the right direction?
+
+Efficiency guidelines:
+- Focus on high-impact actions that move toward the goal
+- Avoid redundant information gathering
+- Consider time and resource constraints
+- Plan 2-3 steps ahead when possible
+- Identify clear success criteria for the current iteration
+
+Iteration awareness:
+- Track progress from previous iterations
+- Learn from any errors or setbacks
+- Adjust strategy based on new information
+- Consider whether the goal needs refinement
+
+Output your thoughts clearly, focusing on actionable insights and concrete next steps. Keep analysis concise but thorough.
 
 Respond with your reasoning and what specific action to take next (or 'GOAL_ACHIEVED' if done)."""
 
@@ -102,8 +121,29 @@ Respond with your reasoning and what specific action to take next (or 'GOAL_ACHI
             # Decide what tool to use
             action_prompt = f"""Based on this thinking: {last_thoughts}
 
-What specific command should I run? Respond with ONLY the command, nothing else.
-If no command is needed, respond with 'NO_ACTION'."""
+Based on your thinking, decide on the next action to take. Choose actions that are safe, efficient, and move toward your goal.
+
+Safety considerations:
+- Avoid destructive operations without clear necessity
+- Validate inputs and check constraints before acting
+- Use non-destructive alternatives when possible (e.g., --dry-run flags)
+- Back up important data before major changes
+
+Action formatting guidelines:
+- Use clear, specific commands with proper syntax
+- Include necessary flags and parameters
+- Specify full paths when working with files
+- Add error handling when appropriate
+
+Error handling approach:
+- Check for common failure conditions
+- Include validation steps when needed
+- Plan fallback actions for likely failures
+- Gather diagnostic information when commands fail
+
+Choose ONE specific action that best advances your goal. Format as a clear command or instruction.
+
+Respond with ONLY the command, nothing else. If no command is needed, respond with 'NO_ACTION'."""
 
             response = client.messages.create(
                 model=ANTHROPIC_MODEL,
