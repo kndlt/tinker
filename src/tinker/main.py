@@ -1,6 +1,7 @@
 import argparse
 from dotenv import load_dotenv
 from . import docker_manager
+from .constants import ANTHROPIC_MODEL
 
 
 
@@ -12,6 +13,7 @@ def interactive_chat_mode():
     
     print("🤖 Tinker Interactive Mode - Type 'exit' or 'quit' to stop")
     print("💬 Chat naturally or give tasks directly")
+    print(f"🧠 Model: {ANTHROPIC_MODEL}")
     
     # Initialize LangGraph components
     checkpoint_manager = TinkerCheckpointManager()

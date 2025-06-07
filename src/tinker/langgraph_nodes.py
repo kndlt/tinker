@@ -8,6 +8,7 @@ from typing import Dict, Any
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from .anthropic_tools_manager import AnthropicToolsManager
 from .langgraph_state import TinkerState
+from .constants import ANTHROPIC_MODEL
 
 
 class TinkerLangGraphNodes:
@@ -89,7 +90,7 @@ BE CONVERSATIONAL! You should chat naturally with users like GitHub Copilot. Ans
                 # Ask Claude to analyze the task
                 try:
                     response = client.messages.create(
-                        model="claude-sonnet-4-20250514",
+                        model=ANTHROPIC_MODEL,
                         max_tokens=1000,
                         system=system_prompt,
                         messages=[
@@ -122,7 +123,7 @@ Examples:
   COMMAND: git log --oneline -n 5"""
 
                     tool_response = client.messages.create(
-                        model="claude-sonnet-4-20250514",
+                        model=ANTHROPIC_MODEL,
                         max_tokens=300,
                         messages=[
                             {"role": "user", "content": tool_decision_prompt}
@@ -311,7 +312,7 @@ Command results:
 Please provide a conversational response that analyzes these results naturally. Include relevant details from the output in your response. Don't mention that you ran commands - just provide insights based on what you found."""
 
                     response = client.messages.create(
-                        model="claude-sonnet-4-20250514",
+                        model=ANTHROPIC_MODEL,
                         max_tokens=500,
                         messages=[
                             {"role": "user", "content": comprehensive_prompt}
