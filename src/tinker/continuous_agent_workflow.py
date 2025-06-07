@@ -76,8 +76,8 @@ class ContinuousAgentWorkflow:
             AIMessage(content=f"Starting continuous reasoning loop for goal: {goal}")
         )
         
-        # Run the graph
-        final_state = self.graph.invoke(initial_state)
+        # Run the graph with increased recursion limit
+        final_state = self.graph.invoke(initial_state, config={"recursion_limit": 100})
         
         # Add summary
         final_state['messages'].append(

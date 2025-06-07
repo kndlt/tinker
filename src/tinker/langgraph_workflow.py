@@ -69,7 +69,7 @@ class TinkerWorkflow:
         # Create session record
         self.checkpoint_manager.create_session(thread_id, task_content[:100])
         
-        config = {"configurable": {"thread_id": thread_id}}
+        config = {"configurable": {"thread_id": thread_id}, "recursion_limit": 100}
         
         # Check if this is continuing an existing conversation
         has_existing = self.checkpoint_manager.has_existing_conversation(thread_id)
@@ -143,7 +143,7 @@ class TinkerWorkflow:
     
     def resume_task(self, thread_id: str, checkpoint_id: Optional[str] = None) -> TinkerState:
         """Resume a task from a checkpoint"""
-        config = {"configurable": {"thread_id": thread_id}}
+        config = {"configurable": {"thread_id": thread_id}, "recursion_limit": 100}
         if checkpoint_id:
             config["configurable"]["checkpoint_id"] = checkpoint_id
         
