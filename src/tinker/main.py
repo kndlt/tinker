@@ -137,12 +137,12 @@ def main():
     print("🐳 Starting Docker container...")
     docker_manager.start_container()
     
-    # If task provided as argument, process it and exit
+    # If task provided as argument, process it first then continue to chat
     if args.task:
         single_task_mode(args.task)
-        return
+        print()  # Add some space before starting chat
     
-    # Default to interactive chat mode
+    # Start interactive chat mode (always)
     interactive_chat_mode()
 
 
