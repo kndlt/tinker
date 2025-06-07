@@ -105,71 +105,56 @@ BE CONVERSATIONAL! You should chat naturally with users like GitHub Copilot. Ans
                         # Skip tool_use and other non-text blocks for conversational response
                     response_text = response_text.strip()
                     
-                    # Check if this is purely conversational or if Claude is suggesting actions
-                    # Be very conservative - only detect clear action patterns
-                    needs_shell_execution = any([
-                        "let me check" in response_text.lower(),
-                        "i'll check" in response_text.lower(), 
-                        "let me run" in response_text.lower(),
-                        "i'll run" in response_text.lower(),
-                        "let me look" in response_text.lower(),
-                        "i'll look" in response_text.lower(),
-                        "let me find" in response_text.lower(),
-                        "i'll find" in response_text.lower(),
-                        "let me search" in response_text.lower(),
-                        "i'll search" in response_text.lower(),
-                        "let me use" in response_text.lower() and "command" in response_text.lower(),
-                        "i'll use" in response_text.lower() and "command" in response_text.lower()
-                    ])
-                    
-                    if needs_shell_execution:
-                        # Ask Claude to provide the specific command with clearer context
-                        command_prompt = f"""Your previous response suggested you want to perform an action: "{response_text}"
+                    # Ask Claude to decide what tools to use (if any) using proper tool calling
+                    tool_decision_prompt = f"""Based on the user's request: "{task_content}"
 
-What specific shell command should I execute to accomplish this? Examples:
-- To check for a README file: "ls README*" or "find . -name 'README*'"
-- To list directory contents: "ls -la"
-- To check git status: "git status"
+Should I run any shell commands to help answer this? If so, what commands?
 
-Please provide only the shell command, or respond "NO_COMMAND" if no command is actually needed."""
-                        
-                        cmd_response = client.messages.create(
-                            model="claude-3-5-sonnet-20241022",
-                            max_tokens=200,
-                            messages=[
-                                {"role": "user", "content": command_prompt}
-                            ]
-                        )
-                        
-                        command = ""
-                        for content_block in cmd_response.content:
-                            if content_block.type == "text":
-                                command += content_block.text
-                            # Skip tool_use and other non-text blocks for command extraction
-                        command = command.strip()
-                        
-                        # Check if Claude said no command is needed
-                        if "NO_COMMAND" in command.upper() or "no command" in command.lower():
-                            planned_tools = []
-                        else:
-                            # Basic safety check - prevent obviously dangerous commands
-                            dangerous_patterns = ["rm -rf /", "format", "mkfs", "dd if=/dev/zero"]
-                            if any(pattern in command.lower() for pattern in dangerous_patterns):
-                                command = f"echo 'Safety check prevented potentially dangerous command. Task: {task_content}'"
-                            
-                            # Plan the tool execution
-                            planned_tools.append({
-                                "tool_name": "execute_shell_command",
-                                "input": {
-                                    "command": command,
-                                    "reason": f"Following up on conversational response about: {task_content}"
-                                }
-                            })
-                    else:
-                        # This is purely conversational, no tools needed
-                        planned_tools = []
+Respond with either:
+1. Just conversational text if no commands needed
+2. A list of specific shell commands I should run, one per line, prefixed with "COMMAND: "
+
+Examples:
+- For "what files are here?": COMMAND: ls -la
+- For "how are you?": Just say how you are, no commands needed
+- For "check git status and recent commits": 
+  COMMAND: git status
+  COMMAND: git log --oneline -n 5"""
+
+                    tool_response = client.messages.create(
+                        model="claude-3-5-sonnet-20241022",
+                        max_tokens=300,
+                        messages=[
+                            {"role": "user", "content": tool_decision_prompt}
+                        ]
+                    )
                     
-                    # Store the AI response to add AFTER tools complete (if any)
+                    tool_decision_text = ""
+                    for content_block in tool_response.content:
+                        if content_block.type == "text":
+                            tool_decision_text += content_block.text
+                    
+                    # Parse commands from the response
+                    planned_tools = []
+                    for line in tool_decision_text.split('\n'):
+                        line = line.strip()
+                        if line.startswith("COMMAND:"):
+                            command = line.replace("COMMAND:", "").strip()
+                            if command:
+                                # Basic safety check
+                                dangerous_patterns = ["rm -rf /", "format", "mkfs", "dd if=/dev/zero"]
+                                if any(pattern in command.lower() for pattern in dangerous_patterns):
+                                    command = f"echo 'Safety check prevented potentially dangerous command'"
+                                
+                                planned_tools.append({
+                                    "tool_name": "execute_shell_command",
+                                    "input": {
+                                        "command": command,
+                                        "reason": f"To help answer: {task_content}"
+                                    }
+                                })
+                    
+                    # Store the initial AI response - this will be the context/explanation
                     pending_ai_response = response_text
                     
                     
@@ -294,12 +279,29 @@ Please provide only the shell command, or respond "NO_COMMAND" if no command is 
                     conversation_history = updated_state.get("conversation_history", [])
                     task_content = updated_state.get("task_content", "")
                     
-                    # Ask AI to respond based on tool results
+                    # Get the initial AI response for context
+                    pending_ai_response = updated_state.get("pending_ai_response", "")
+                    
+                    # Ask AI to provide a comprehensive response combining context + results
+                    comprehensive_prompt = f"""User asked: {task_content}
+
+My initial thoughts: {pending_ai_response}
+
+I then executed these commands:
+{tool_summary}
+
+Please provide a comprehensive response that:
+1. Incorporates the command results
+2. Answers the user's original question 
+3. Is conversational and natural
+
+Don't repeat that you ran commands - just provide the insights from the results."""
+
                     response = client.messages.create(
                         model="claude-3-5-sonnet-20241022",
                         max_tokens=500,
                         messages=[
-                            {"role": "user", "content": f"User asked: {task_content}\n\nI executed these commands:\n{tool_summary}\n\nPlease provide a helpful response based on these results. Be conversational and natural."}
+                            {"role": "user", "content": comprehensive_prompt}
                         ]
                     )
                     
