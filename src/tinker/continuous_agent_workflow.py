@@ -30,8 +30,24 @@ class ContinuousAgentWorkflow:
         # Define the loop flow
         workflow.set_entry_point("think")
         
-        # Linear flow through the loop
-        workflow.add_edge("think", "act")
+        # Conditional edge from think
+        def after_think(state: ContinuousAgentState) -> str:
+            """Decide next step after thinking"""
+            if state.get('current_phase') == 'decide':
+                return "decide"  # Skip to decide if goal achieved
+            else:
+                return "act"  # Normal flow
+        
+        workflow.add_conditional_edges(
+            "think",
+            after_think,
+            {
+                "act": "act",
+                "decide": "decide"
+            }
+        )
+        
+        # Continue with normal flow
         workflow.add_edge("act", "observe")
         workflow.add_edge("observe", "decide")
         
@@ -68,7 +84,8 @@ class ContinuousAgentWorkflow:
             last_result=None,
             should_continue=True,
             exit_reason=None,
-            current_phase="think"
+            current_phase="think",
+            user_response=None
         )
         
         # Add initial message

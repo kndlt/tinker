@@ -32,3 +32,6 @@ class ContinuousAgentState(TypedDict):
     
     # Reasoning phase
     current_phase: Literal["think", "act", "observe", "decide"]
+    
+    # Optional user response for conversational goals
+    user_response: Optional[str]

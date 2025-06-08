@@ -74,6 +74,10 @@ def interactive_chat_mode():
                         elif not content.startswith("Starting continuous") and not content.startswith("Completed after"):
                             print(f"\033[90m{content}\033[0m")
                 
+                # Display user response if available
+                if 'user_response' in result:
+                    print(f"\n{result['user_response']}")
+                
                 print(f"\n\033[92m✅ Reasoning completed: {result.get('exit_reason', 'Done')}\033[0m")
                         
             except Exception as e:

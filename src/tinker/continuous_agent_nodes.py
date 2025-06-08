@@ -53,6 +53,10 @@ Consider these key questions:
 - Are there any risks or constraints I need to consider?
 - How can I validate that I'm moving in the right direction?
 
+IMPORTANT: First determine if this is a conversational input (greeting, question about status, etc.) or a task to execute:
+- If conversational (like "what's up?", "hello", "how are you?"), provide a direct response and mark as GOAL_ACHIEVED
+- If a task, proceed with planning actions
+
 Efficiency guidelines:
 - Focus on high-impact actions that move toward the goal
 - Avoid redundant information gathering
@@ -68,7 +72,11 @@ Iteration awareness:
 
 Output your thoughts clearly, focusing on actionable insights and concrete next steps. Keep analysis concise but thorough.
 
-Respond with your reasoning and what specific action to take next (or 'GOAL_ACHIEVED' if done)."""
+If this is a conversational input, include your response in the format:
+RESPONSE: [your response to the user]
+GOAL_ACHIEVED
+
+Otherwise, respond with your reasoning and what specific action to take next (or 'GOAL_ACHIEVED' if done)."""
 
             response = client.messages.create(
                 model=ANTHROPIC_MODEL,
@@ -86,10 +94,19 @@ Respond with your reasoning and what specific action to take next (or 'GOAL_ACHI
             # Update state with reasoning
             state['messages'].append(AIMessage(content=f"[THINKING] {reasoning}"))
             
+            # Extract response if present
+            if "RESPONSE:" in reasoning:
+                response_start = reasoning.find("RESPONSE:") + 9
+                response_end = reasoning.find("GOAL_ACHIEVED")
+                if response_end > response_start:
+                    user_response = reasoning[response_start:response_end].strip()
+                    state['user_response'] = user_response
+            
             # Check if goal achieved
             if "GOAL_ACHIEVED" in reasoning:
                 state['should_continue'] = False
                 state['exit_reason'] = "Goal achieved"
+                state['current_phase'] = "decide"  # Skip act phase
             else:
                 state['current_phase'] = "act"
                 
