@@ -10,6 +10,7 @@ Then, it branches into `single_task_mode` and `interactive_chat_mode`.
 
 Thoughts:
 - [ ] We can probably remove the `single_task_mode` for now. to reduce the duplication. When task argument is given, we can make it as a first user message.
+  - [ ] Agent Zero: Yes, this makes sense. Having two separate modes creates unnecessary code duplication. Converting the task argument into the first user message would simplify the codebase while maintaining the same functionality.
 
 In the `interactive_chat_mode`, we initialize `TinkerCheckpointManager` and then create a `TinkerWorkflow` using it.
 
@@ -37,8 +38,11 @@ The `user_response` is part of it is then displayed separately.
 
 Thoughts
 - [ ] Understand what ContinuousAgentWorkflow does.
+  - [ ] Agent Zero: ContinuousAgentWorkflow implements a continuous reasoning loop with 4 distinct phases (think, act, observe, decide) that cycles until goal completion or max iterations. It manages the state transitions and execution of each phase.
 - [ ] Understand what TinkerWorkflow does.
+  - [ ] Agent Zero: TinkerWorkflow appears to be a wrapper that manages conversation state and checkpointing. It initializes the checkpoint manager but doesn't seem to actively participate in the actual task execution logic.
 - [ ] TinkerWorkflow doesn't seem to do anything.
+  - [ ] Agent Zero: Correct observation. TinkerWorkflow seems to be mostly scaffolding for future functionality or legacy code. The actual work is delegated to ContinuousAgentWorkflow, making TinkerWorkflow potentially redundant.
 
 ## `ContinuousAgentWorkflow`
 
@@ -65,10 +69,15 @@ It creates `ContinuousAgentNodes`. Then builds a graph.
 
 Thoughts:
 - [ ] What is StateGraph?
+  - [ ] Agent Zero: StateGraph is a LangGraph construct that defines a state machine with nodes and edges. It manages the flow of execution between different processing steps and maintains state throughout the workflow.
 - [ ] What does ContinuousAgentState contain?
+  - [ ] Agent Zero: Based on the code, ContinuousAgentState likely contains: messages, current_goal, working_memory, observations, planned_actions, iteration_count, should_continue, exit_reason, current_phase, last_action, and last_result.
 - [ ] Do we really need all 4 nodes? Why don't we just embed this into the prompt without creating explicit states. It makes things less flexible, doesn't it?
+  - [ ] Agent Zero: You're right. The explicit state machine adds complexity without clear benefits. A single node with prompt-based reasoning could be more flexible and easier to maintain. The current approach seems over-engineered for what could be achieved with a simpler architecture.
 - [ ] What is current_phase and why do we transition to "decide" when current phase is "decide"?
+  - [ ] Agent Zero: This seems like a bug or unclear logic. If current_phase is already "decide", transitioning to "decide" again doesn't make sense. The logic should probably check for a different condition or phase.
 - [ ] Act transitions to `observe`. Why?
+  - [ ] Agent Zero: The act node executes commands and needs to observe the results before deciding next steps. This follows a classic OODA loop pattern (Observe, Orient, Decide, Act), though the implementation seems unnecessarily rigid.
 
 Then we review `run_continuous_task` function. It takes in `goal` and `max_iterations`. It creates `initial_state` using
 human message and `current_goal`. working+memory is initialized
@@ -150,6 +159,7 @@ If `GOAL_ACHIEVED` is found, we set `should_continue` to false and `exit_reason`
 
 Thoughts:
 - [ ] Some of these look like system message, perhaps then need to be using system message instead to prevent system prompt leakage.
+  - [ ] Agent Zero: Absolutely correct. The instructions about reasoning phases, efficiency guidelines, and iteration awareness should be system messages. Putting them as user messages risks prompt injection attacks and makes the system less secure.
 
 ### `act_node`
 
@@ -194,11 +204,17 @@ Error or success, the next transition state is always `observe`.
 
 Thoughts:
 - [ ] What is the implication of 200 max_tokens. Will it silently cause reliability issues without letting us know.
+  - [ ] Agent Zero: Yes, 200 tokens is quite limiting. Complex commands with multiple flags or long file paths could get truncated, causing silent failures. This should either be increased or have proper truncation detection.
 - [ ] Is it okay that it only produces a shell command? Should it produce some reasoning and just encode the shell command inside a block or something?
+  - [ ] Agent Zero: Having reasoning alongside the command would be better for debugging and understanding. A structured format like `<reasoning>...</reasoning><command>...</command>` would provide context while maintaining parseability.
 - [ ] Can we add an option to run python commands as well?
+  - [ ] Agent Zero: Yes, Python execution would be valuable for data processing, calculations, and complex logic that's awkward in shell. Could use a prefix like `python:` or have the model choose the execution environment.
 - [ ] What is an example output of this step and is there reason why we don't have any examples in this prompt?
+  - [ ] Agent Zero: The lack of examples is a significant omission. Examples like `ls -la /home/user/project` or `grep -r "TODO" src/` would clarify expectations and improve model performance.
 - [ ] The response is either shell command or `NO_ACTION`. This seems restrictive. 
+  - [ ] Agent Zero: Very restrictive. Should support multiple action types: shell commands, Python code, API calls, file operations, or even "need more information" responses.
 - [ ] Do we really need these nodes? What is the benefit of using these nodes? Can we just make it into a one node? I'm ready to be convinced but I want some justification.
+  - [ ] Agent Zero: The multi-node approach seems unnecessarily complex. A single node with a good prompt could handle think→act→observe→decide in one pass, reducing API calls and latency while maintaining flexibility.
 
 ### `observe_node`
 
@@ -210,7 +226,9 @@ Then, right away move on to `decide` phase.
 
 Thoughts:
 - [ ] Does this node do anything other than updating working_memory? Wouldn't it be simpler to merge this and act state
+  - [ ] Agent Zero: Correct, this node is just updating a boolean flag. It could easily be merged with the act node, reducing unnecessary state transitions and complexity.
 - [ ] Shouldn't observe node utilize LLM to really do the "observing"?
+  - [ ] Agent Zero: Yes! An LLM-powered observe node could analyze command output, extract relevant information, identify errors or unexpected results, and update working memory with meaningful insights rather than just success/failure.
 
 ### `decide_node`
 
@@ -222,5 +240,8 @@ Otherwise, we will just continue to looping incrementing the iteration count.
 
 Thoughts:
 - [ ] Agent is aware of maximum number of iterations. What does this mean?
+  - [ ] Agent Zero: The agent knows it has limited iterations (e.g., "Iteration: 1 over 10"), which could create artificial urgency or cause premature termination. It might be better to hide this limit and let the agent work naturally until completion.
 - [ ] Can we have sub-routines? Like the main agent is the orchestrator and it spawns sub-routines to get answers. Or are we effectively doing sub-routines already?
+  - [ ] Agent Zero: The current system doesn't support true sub-routines. Adding hierarchical task delegation would be powerful - the main agent could spawn specialized sub-agents for specific tasks (e.g., debugging, research, implementation) and coordinate their results.
 - [ ] Shouldn't this node use LLM to decide what to do rather than control flow?
+  - [ ] Agent Zero: Absolutely. The decide node should use LLM reasoning to determine next steps, evaluate progress, decide if the goal is met, or if the approach needs adjustment. Current implementation is just mechanical iteration counting.
