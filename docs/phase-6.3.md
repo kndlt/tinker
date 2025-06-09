@@ -75,7 +75,7 @@ from langchain_anthropic import ChatAnthropic
 from langgraph.checkpoint.memory import MemorySaver
 from typing import List, Dict, Any, Optional
 
-class FluidReasoningWorkflow:
+class ContinuousAgentWorkflow:
     """Simplified workflow using LangGraph's create_react_agent"""
     
     def __init__(self, enable_memory: bool = True):
@@ -154,8 +154,8 @@ def interactive_chat_mode():
     print("💬 Chat naturally or give tasks directly")
     print(f"🧠 Model: {ANTHROPIC_MODEL}")
     
-    # Create fluid reasoning workflow
-    workflow = FluidReasoningWorkflow(enable_memory=True)
+    # Create continuous agent workflow  
+    workflow = ContinuousAgentWorkflow(enable_memory=True)
     
     try:
         while True:
@@ -202,7 +202,7 @@ def single_task_mode(task_content):
     """Process a single task using fluid reasoning"""
     print(f"\033[90m🔄 Processing task with fluid reasoning...\033[0m")
     
-    workflow = FluidReasoningWorkflow(enable_memory=False)  # No memory for single tasks
+    workflow = ContinuousAgentWorkflow(enable_memory=False)  # No memory for single tasks
     result = workflow.run_task(task_content, thread_id=f"task-{uuid.uuid4()}")
     
     # Display result
@@ -243,7 +243,7 @@ def single_task_mode(task_content):
 ## Migration Steps
 
 1. [ ] Create tool definitions using @tool decorator
-2. [ ] Implement FluidReasoningWorkflow class
+2. [ ] Implement ContinuousAgentWorkflow class using create_react_agent
 3. [ ] Update main.py to use new workflow
 4. [ ] Test basic functionality with simple tasks
 5. [ ] Test complex multi-step tasks
