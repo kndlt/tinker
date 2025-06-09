@@ -62,7 +62,10 @@ Guidelines:
         Returns:
             Dictionary with messages and results
         """
-        config = {"configurable": {"thread_id": thread_id}}
+        config = {
+            "configurable": {"thread_id": thread_id},
+            "recursion_limit": 100
+        }
         
         result = self.agent.invoke(
             {"messages": [{"role": "user", "content": goal}]},
