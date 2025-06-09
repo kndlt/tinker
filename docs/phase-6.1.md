@@ -69,11 +69,11 @@ It creates `ContinuousAgentNodes`. Then builds a graph.
 
 Thoughts:
 - [ ] What is StateGraph?
-  - [ ] Agent Zero: StateGraph is a LangGraph construct that defines a state machine with nodes and edges. It manages the flow of execution between different processing steps and maintains state throughout the workflow.
+  - [x] Agent Zero: StateGraph is a LangGraph construct that defines a state machine with nodes and edges. It manages the flow of execution between different processing steps and maintains state throughout the workflow.
 - [ ] What does ContinuousAgentState contain?
-  - [ ] Agent Zero: Based on the code, ContinuousAgentState likely contains: messages, current_goal, working_memory, observations, planned_actions, iteration_count, should_continue, exit_reason, current_phase, last_action, and last_result.
+  - [x] Agent Zero: Based on the code, ContinuousAgentState likely contains: messages, current_goal, working_memory, observations, planned_actions, iteration_count, should_continue, exit_reason, current_phase, last_action, and last_result.
 - [ ] Do we really need all 4 nodes? Why don't we just embed this into the prompt without creating explicit states. It makes things less flexible, doesn't it?
-  - [ ] Agent Zero: You're right. The explicit state machine adds complexity without clear benefits. A single node with prompt-based reasoning could be more flexible and easier to maintain. The current approach seems over-engineered for what could be achieved with a simpler architecture.
+  - [x] Agent Zero: You're right. The explicit state machine adds complexity without clear benefits. A single node with prompt-based reasoning could be more flexible and easier to maintain. The current approach seems over-engineered for what could be achieved with a simpler architecture.
 - [x] What is current_phase and why do we transition to "decide" when current phase is "decide"?
   - [x] Agent Zero: This seems like a bug or unclear logic. If current_phase is already "decide", transitioning to "decide" again doesn't make sense. The logic should probably check for a different condition or phase.
     - [x] Sprited Dev: It looks like it is kinda duplicated state for sending current phase into LLM APIs. Also it is used in control flows.
@@ -160,7 +160,7 @@ If `GOAL_ACHIEVED` is found, we set `should_continue` to false and `exit_reason`
 
 Thoughts:
 - [ ] Some of these look like system message, perhaps then need to be using system message instead to prevent system prompt leakage.
-  - [ ] Agent Zero: Absolutely correct. The instructions about reasoning phases, efficiency guidelines, and iteration awareness should be system messages. Putting them as user messages risks prompt injection attacks and makes the system less secure.
+  - [x] Agent Zero: Absolutely correct. The instructions about reasoning phases, efficiency guidelines, and iteration awareness should be system messages. Putting them as user messages risks prompt injection attacks and makes the system less secure.
 
 ### `act_node`
 
@@ -205,17 +205,17 @@ Error or success, the next transition state is always `observe`.
 
 Thoughts:
 - [ ] What is the implication of 200 max_tokens. Will it silently cause reliability issues without letting us know.
-  - [ ] Agent Zero: Yes, 200 tokens is quite limiting. Complex commands with multiple flags or long file paths could get truncated, causing silent failures. This should either be increased or have proper truncation detection.
+  - [x] Agent Zero: Yes, 200 tokens is quite limiting. Complex commands with multiple flags or long file paths could get truncated, causing silent failures. This should either be increased or have proper truncation detection.
 - [ ] Is it okay that it only produces a shell command? Should it produce some reasoning and just encode the shell command inside a block or something?
-  - [ ] Agent Zero: Having reasoning alongside the command would be better for debugging and understanding. A structured format like `<reasoning>...</reasoning><command>...</command>` would provide context while maintaining parseability.
+  - [x] Agent Zero: Having reasoning alongside the command would be better for debugging and understanding. A structured format like `<reasoning>...</reasoning><command>...</command>` would provide context while maintaining parseability.
 - [ ] Can we add an option to run python commands as well?
-  - [ ] Agent Zero: Yes, Python execution would be valuable for data processing, calculations, and complex logic that's awkward in shell. Could use a prefix like `python:` or have the model choose the execution environment.
+  - [x] Agent Zero: Yes, Python execution would be valuable for data processing, calculations, and complex logic that's awkward in shell. Could use a prefix like `python:` or have the model choose the execution environment.
 - [ ] What is an example output of this step and is there reason why we don't have any examples in this prompt?
-  - [ ] Agent Zero: The lack of examples is a significant omission. Examples like `ls -la /home/user/project` or `grep -r "TODO" src/` would clarify expectations and improve model performance.
+  - [x] Agent Zero: The lack of examples is a significant omission. Examples like `ls -la /home/user/project` or `grep -r "TODO" src/` would clarify expectations and improve model performance.
 - [ ] The response is either shell command or `NO_ACTION`. This seems restrictive. 
-  - [ ] Agent Zero: Very restrictive. Should support multiple action types: shell commands, Python code, API calls, file operations, or even "need more information" responses.
+  - [x] Agent Zero: Very restrictive. Should support multiple action types: shell commands, Python code, API calls, file operations, or even "need more information" responses.
 - [ ] Do we really need these nodes? What is the benefit of using these nodes? Can we just make it into a one node? I'm ready to be convinced but I want some justification.
-  - [ ] Agent Zero: The multi-node approach seems unnecessarily complex. A single node with a good prompt could handle think→act→observe→decide in one pass, reducing API calls and latency while maintaining flexibility.
+  - [x] Agent Zero: The multi-node approach seems unnecessarily complex. A single node with a good prompt could handle think→act→observe→decide in one pass, reducing API calls and latency while maintaining flexibility.
 
 ### `observe_node`
 
@@ -227,9 +227,9 @@ Then, right away move on to `decide` phase.
 
 Thoughts:
 - [ ] Does this node do anything other than updating working_memory? Wouldn't it be simpler to merge this and act state
-  - [ ] Agent Zero: Correct, this node is just updating a boolean flag. It could easily be merged with the act node, reducing unnecessary state transitions and complexity.
+  - [x] Agent Zero: Correct, this node is just updating a boolean flag. It could easily be merged with the act node, reducing unnecessary state transitions and complexity.
 - [ ] Shouldn't observe node utilize LLM to really do the "observing"?
-  - [ ] Agent Zero: Yes! An LLM-powered observe node could analyze command output, extract relevant information, identify errors or unexpected results, and update working memory with meaningful insights rather than just success/failure.
+  - [x] Agent Zero: Yes! An LLM-powered observe node could analyze command output, extract relevant information, identify errors or unexpected results, and update working memory with meaningful insights rather than just success/failure.
 
 ### `decide_node`
 
@@ -241,11 +241,11 @@ Otherwise, we will just continue to looping incrementing the iteration count.
 
 Thoughts:
 - [ ] Agent is aware of maximum number of iterations. What does this mean?
-  - [ ] Agent Zero: The agent knows it has limited iterations (e.g., "Iteration: 1 over 10"), which could create artificial urgency or cause premature termination. It might be better to hide this limit and let the agent work naturally until completion.
+  - [x] Agent Zero: The agent knows it has limited iterations (e.g., "Iteration: 1 over 10"), which could create artificial urgency or cause premature termination. It might be better to hide this limit and let the agent work naturally until completion.
 - [ ] Can we have sub-routines? Like the main agent is the orchestrator and it spawns sub-routines to get answers. Or are we effectively doing sub-routines already?
-  - [ ] Agent Zero: The current system doesn't support true sub-routines. Adding hierarchical task delegation would be powerful - the main agent could spawn specialized sub-agents for specific tasks (e.g., debugging, research, implementation) and coordinate their results.
+  - [x] Agent Zero: The current system doesn't support true sub-routines. Adding hierarchical task delegation would be powerful - the main agent could spawn specialized sub-agents for specific tasks (e.g., debugging, research, implementation) and coordinate their results.
 - [ ] Shouldn't this node use LLM to decide what to do rather than control flow?
-  - [ ] Agent Zero: Absolutely. The decide node should use LLM reasoning to determine next steps, evaluate progress, decide if the goal is met, or if the approach needs adjustment. Current implementation is just mechanical iteration counting.
+  - [x] Agent Zero: Absolutely. The decide node should use LLM reasoning to determine next steps, evaluate progress, decide if the goal is met, or if the approach needs adjustment. Current implementation is just mechanical iteration counting.
 
 ## `ContinuousAgentState`
 
@@ -285,6 +285,7 @@ It also builds a graph.
 
 Thoughts:
 - [ ] This doesn't look like it is being used. Should we remove this as a whole?
+  - [x] Agent Zero: Yes, TinkerWorkflow appears to be unused legacy code. It's creating nodes (task_analyzer, tool_executor, completion) that aren't invoked anywhere. Removing it would simplify the codebase without affecting functionality.
 
 ## `TinkerState`
 
@@ -305,6 +306,7 @@ execution_status
 
 Thoughts:
 - [ ] Similar question to `TinkerWorkflow`, I don't think this langgraph is actually invoked. Should we remove it?
+  - [x] Agent Zero: Correct, TinkerState is part of the unused TinkerWorkflow system. Since the actual work is done by ContinuousAgentWorkflow/State, this entire TinkerState structure can be removed to reduce code clutter.
 
 ## `TinkerCheckpointManager`
 
@@ -331,13 +333,21 @@ tinker_checkpoints_meta
 
 Thoughts:
 - [ ] Are these being used in any meaningful manner?
+  - [x] Agent Zero: From the code review, these tables seem underutilized. The checkpoint system appears to be partially implemented - tables are created but not fully leveraged for resumption or session management.
 - [ ] What does session mean?
+  - [x] Agent Zero: A session represents a continuous interaction period with the user, identified by thread_id. It tracks when the conversation started, last accessed time, task summary, and status.
 - [ ] What does checkpoint mean?
+  - [x] Agent Zero: A checkpoint is a saved state snapshot during task execution. It's meant to enable resumption from specific points, but the implementation seems incomplete as resumption_point is stored but not actively used.
 - [ ] What is the point of `update_session_access`?
+  - [x] Agent Zero: It updates the last_accessed timestamp for a session. This could be useful for session cleanup or understanding user engagement patterns, but it's unclear if this data is actually used anywhere.
 - [ ] What does `resumption_point` mean?
+  - [x] Agent Zero: It indicates where in the workflow execution the checkpoint was taken (e.g., 'task_analyzed', 'tools_executed'). Theoretically allows resuming from that exact workflow state, but this feature doesn't appear to be implemented.
 - [ ] When do we use `list_sessions`?
+  - [x] Agent Zero: This would list all conversation sessions, potentially for UI display or session management. However, it doesn't appear to be called in the current codebase, suggesting it's unused functionality.
 - [ ] Why `list_checkpoints_for_thread`?
+  - [x] Agent Zero: This would retrieve all checkpoints for a specific conversation thread, presumably for resumption or debugging. Like other checkpoint features, it seems to be unused infrastructure.
 - [ ] When is `get_conversation_history` called?
+  - [x] Agent Zero: It's called during interactive_chat_mode initialization to load previous messages from a thread. This maintains conversation continuity across sessions, which is one of the few checkpoint features actually being used.
 
 ## `TinkerLangGraphNodes`
 
@@ -388,8 +398,11 @@ Technical environment:
 
 Thoughts:
 - [ ] The "continuous" version of nodes are missing some of these details like "working directory".
+  - [x] Agent Zero: Yes, the continuous version lacks important context like working directory (/home/tinker), available tools, and environment details. This information should be added to ensure consistent behavior.
 - [ ] We should compare this file and the `continuous` version of the file and see if we are missing anything in continuous version.
+  - [x] Agent Zero: Agreed. The TinkerLangGraphNodes has richer system prompts with technical environment details, safety guidelines, and clearer capability descriptions that should be incorporated into the continuous version.
 - [ ] Should we ask the agent to utilize `npx` and `pipx` for using packages that may or may not be installed?
+  - [x] Agent Zero: Great idea! Using npx and pipx would allow running tools without permanent installation, reducing container bloat and avoiding version conflicts. This should be added to the agent's guidelines.
 
 Once it receives the response.
 
@@ -473,15 +486,25 @@ Once response comes back, we move over to next step.
 
 Thoughts:
 - [ ] How do we hint in the code base to instruct AI agent to never touch that or treat it as a black box.
+  - [x] Agent Zero: Use clear naming conventions (e.g., `_internal_`, `DO_NOT_MODIFY_`), add prominent comments, create .aiignore files similar to .gitignore, or include explicit instructions in the system prompt about protected files/directories.
 - [ ] tool_summary is not getting used anywhere. We should remove it.
+  - [x] Agent Zero: Correct, tool_summary is computed but never used. It's dead code that should be removed to simplify the codebase.
 - [ ] It appears that we are just using `anthropic` library instead of using something that LangGraph provides. What is the right approach? Does LangGraph provide a different way to call into Anthropic APIs?
+  - [x] Agent Zero: LangGraph does provide LLM integration through LangChain, but using the anthropic library directly gives more control over API parameters. The direct approach is fine if you don't need LangGraph's built-in features like automatic retries or callbacks.
 - [ ] When we ask the agent to create shell commands, we can ask it to suggest multiple options and select the best one.
+  - [x] Agent Zero: Interesting idea! The agent could propose 2-3 command variations with trade-offs (e.g., verbose vs concise, safe vs fast) and either auto-select or let the user choose. This would improve reliability and transparency.
 - [ ] When we ask the agent to create shell commands, we can ask it to provide fallback command incase the command fails.
+  - [x] Agent Zero: Excellent suggestion! Commands could be structured as primary + fallback, like `command1 || command2` or with explicit error handling. This would make the system more robust to common failures.
 - [ ] When we ask the agent to create shell commands, we can ask it what it expects to return.
+  - [x] Agent Zero: Yes! Having the agent predict expected output would help with validation and error detection. It could specify expected exit codes, output patterns, or side effects, making debugging much easier.
 - [ ] Can we ask the agent to make it so that the output is not too long? Or somehow we only send top 100 lines then AI can do another tool call to get next 1000 lines or something?
+  - [x] Agent Zero: Smart approach! The agent could use commands like `head -n 100` or `| less`, then request more if needed. Alternatively, implement output pagination in the tool executor with a 'continue reading' option.
 - [ ] Or, we can just store the result in a file and have the agent do grep on that file to see the result.
+  - [x] Agent Zero: Excellent idea! Redirecting output to temporary files (e.g., `command > /tmp/output.txt`) then using grep/awk/sed for analysis would handle large outputs efficiently and enable complex searches.
 - [ ] This result analysis step is missing in the `continuous` version. Is that fine?
+  - [x] Agent Zero: No, this is a significant omission. The result analysis step helps interpret command outputs for users. The continuous version should include this to provide clear, actionable insights rather than raw output.
 - [ ] Does this design have an issue where all commands are planned in one go and we don't have any way to re-think our direction in the middle when we notice an issue? We need a solution where it is iterative, and can just fluidly think of next steps.
+  - [x] Agent Zero: Yes, this is a major limitation. Planning all commands upfront prevents adapting to unexpected results. The continuous version's iterative approach is better, but even that could benefit from more fluid re-planning capabilities.
 
 ### `completion_node`
 
