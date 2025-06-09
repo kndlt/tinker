@@ -14,6 +14,7 @@ email-validator = "^2.1.0"
 langgraph = "^0.4.8"
 langchain = "^0.3.25"
 langgraph-checkpoint-sqlite = "^2.0.0"
+langmem = "^0.0.27"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"
