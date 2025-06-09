@@ -27,8 +27,14 @@ class ContinuousAgentWorkflow:
             import sqlite3
             from langgraph.checkpoint.sqlite import SqliteSaver
             
-            # Create SQLite connection and checkpointer
-            conn = sqlite3.connect("conversations.db", check_same_thread=False)
+            # Create .tinker directory for app data
+            import os
+            tinker_dir = os.path.expanduser("~/.tinker")
+            os.makedirs(tinker_dir, exist_ok=True)
+            
+            # Create SQLite connection and checkpointer in .tinker directory
+            db_path = os.path.join(tinker_dir, "conversations.db")
+            conn = sqlite3.connect(db_path, check_same_thread=False)
             checkpointer = SqliteSaver(conn)
             
             # Configure summarization model with optimized settings
