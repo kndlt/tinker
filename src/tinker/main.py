@@ -8,21 +8,10 @@ from .constants import ANTHROPIC_MODEL
 
 def interactive_chat_mode():
     """Interactive chat mode similar to Claude Code"""
-    from .checkpoint_manager import TinkerCheckpointManager
     
     print("🤖 Tinker Interactive Mode - Type 'exit' or 'quit' to stop")
     print("💬 Chat naturally or give tasks directly")
     print(f"🧠 Model: {ANTHROPIC_MODEL}")
-    
-    # Initialize checkpoint manager
-    checkpoint_manager = TinkerCheckpointManager()
-    
-    # Check for existing conversation
-    main_thread_id = checkpoint_manager.get_main_thread_id()
-    if checkpoint_manager.has_existing_conversation(main_thread_id):
-        print("🧠 Continuing previous conversation...")
-    else:
-        print("🆕 Starting new conversation...")
     
     try:
         while True:
@@ -43,9 +32,8 @@ def interactive_chat_mode():
                 
             # Handle memory clearing
             if user_input.lower() in ['clear memory', '/clear', '/memory clear']:
-                main_thread_id = checkpoint_manager.get_main_thread_id()
-                if checkpoint_manager.clear_memory(main_thread_id):
-                    print("🆕 Memory cleared! Starting fresh conversation...")
+                # Since we don't have persistence yet, just acknowledge
+                print("🆕 Memory cleared! (Note: No persistence implemented yet)")
                 continue
                 
             # Process all input as continuous reasoning (DEFAULT)
