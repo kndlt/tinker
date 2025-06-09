@@ -41,15 +41,16 @@ class ContinuousAgentWorkflow:
             summarization_model = ChatAnthropic(
                 model=ANTHROPIC_MODEL,
                 temperature=0.1,   # Lower temperature for consistent summaries
-                max_tokens=1024    # Increased to handle input + generate summary
+                max_tokens=32768   # 16x original: 2048 * 16
             )
             
             # Create summarization node with researched optimal parameters
+            # 16x the recommended values for extensive context handling
             self.summarization_node = SummarizationNode(
                 model=summarization_model,
-                max_tokens=512,                    # Final context size limit
-                max_tokens_before_summary=768,     # Trigger threshold (1.5x target)
-                max_summary_tokens=256,            # Budget for summary content
+                max_tokens=32768,                   # 16x: 2048 * 16
+                max_tokens_before_summary=49152,    # 16x: 3072 * 16  
+                max_summary_tokens=8192,            # 16x: 512 * 16
                 token_counter=count_tokens_approximately
             )
         else:
