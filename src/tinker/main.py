@@ -4,8 +4,6 @@ from . import docker_manager
 from .constants import ANTHROPIC_MODEL
 
 
-
-
 def interactive_chat_mode():
     """Interactive chat mode similar to Claude Code"""
     
@@ -76,11 +74,6 @@ def single_task_mode(task_content):
             print(f"\n{msg.content}")
     
     print(f"\n\033[92m✅ Task completed\033[0m")
-
-
-
-
-
 
 
 def main():
