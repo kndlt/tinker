@@ -43,28 +43,15 @@ def interactive_chat_mode():
                 continuous_workflow = ContinuousAgentWorkflow()
                 result = continuous_workflow.run_continuous_task(user_input, max_iterations=10)
                 
-                # Display the reasoning process with better formatting
-                for msg in result['messages']:
-                    if hasattr(msg, 'content'):
-                        content = str(msg.content)
-                        if "[THINKING]" in content:
-                            print(f"\n\033[95m💭 {content.replace('[THINKING] ', '')}\033[0m")
-                        elif "[ACTION]" in content:
-                            print(f"\033[94m⚡ {content.replace('[ACTION] ', '')}\033[0m")
-                        elif "[OBSERVE]" in content:
-                            print(f"\033[92m👁️  {content.replace('[OBSERVE] ', '')}\033[0m")
-                        elif "[DECIDE]" in content:
-                            print(f"\033[93m🎯 {content.replace('[DECIDE] ', '')}\033[0m")
-                        elif "[ERROR]" in content:
-                            print(f"\033[91m❌ {content.replace('[ERROR] ', '')}\033[0m")
-                        elif not content.startswith("Starting continuous") and not content.startswith("Completed after"):
-                            print(f"\033[90m{content}\033[0m")
+                # Display the conversation messages
+                for msg in result.get('messages', []):
+                    if hasattr(msg, 'content') and msg.content:
+                        # Skip the initial user message (echo)
+                        if hasattr(msg, 'type') and msg.type == 'human':
+                            continue
+                        print(f"\n{msg.content}")
                 
-                # Display user response if available
-                if 'user_response' in result:
-                    print(f"\n{result['user_response']}")
-                
-                print(f"\n\033[92m✅ Reasoning completed: {result.get('exit_reason', 'Done')}\033[0m")
+                print(f"\n\033[92m✅ Task completed\033[0m")
                         
             except Exception as e:
                 print(f"❌ Error: {e}")
@@ -80,24 +67,15 @@ def single_task_mode(task_content):
     continuous_workflow = ContinuousAgentWorkflow()
     result = continuous_workflow.run_continuous_task(task_content, max_iterations=10)
     
-    # Display the reasoning process
-    for msg in result['messages']:
-        if hasattr(msg, 'content'):
-            content = str(msg.content)
-            if "[THINKING]" in content:
-                print(f"\n\033[95m💭 {content.replace('[THINKING] ', '')}\033[0m")
-            elif "[ACTION]" in content:
-                print(f"\033[94m⚡ {content.replace('[ACTION] ', '')}\033[0m")
-            elif "[OBSERVE]" in content:
-                print(f"\033[92m👁️  {content.replace('[OBSERVE] ', '')}\033[0m")
-            elif "[DECIDE]" in content:
-                print(f"\033[93m🎯 {content.replace('[DECIDE] ', '')}\033[0m")
-            elif "[ERROR]" in content:
-                print(f"\033[91m❌ {content.replace('[ERROR] ', '')}\033[0m")
-            elif not content.startswith("Starting continuous") and not content.startswith("Completed after"):
-                print(f"\033[90m{content}\033[0m")
+    # Display the conversation messages
+    for msg in result.get('messages', []):
+        if hasattr(msg, 'content') and msg.content:
+            # Skip the initial user message (echo)
+            if hasattr(msg, 'type') and msg.type == 'human':
+                continue
+            print(f"\n{msg.content}")
     
-    print(f"\n\033[92m✅ Task completed: {result.get('exit_reason', 'Done')}\033[0m")
+    print(f"\n\033[92m✅ Task completed\033[0m")
 
 
 
