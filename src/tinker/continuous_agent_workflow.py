@@ -5,7 +5,6 @@ Simplified implementation using LangGraph's create_react_agent
 
 from typing import Dict, Any
 from langgraph.prebuilt import create_react_agent
-from langchain_anthropic import ChatAnthropic
 from langgraph.checkpoint.memory import MemorySaver
 from .langchain_tools import AVAILABLE_TOOLS
 from .constants import ANTHROPIC_MODEL
@@ -18,21 +17,15 @@ class ContinuousAgentWorkflow:
         # Define available tools
         self.tools = AVAILABLE_TOOLS
         
-        # Create model
-        self.model = ChatAnthropic(
-            model=ANTHROPIC_MODEL,
-            temperature=0
-        )
-        
         # Setup memory if enabled
         checkpointer = MemorySaver() if enable_memory else None
         
         # Create the agent using LangGraph prebuilt
         self.agent = create_react_agent(
-            model=self.model,
+            model=f"anthropic:{ANTHROPIC_MODEL}",
             tools=self.tools,
             checkpointer=checkpointer,
-            system_prompt=self._get_system_prompt()
+            prompt=self._get_system_prompt()
         )
     
     def _get_system_prompt(self) -> str:
@@ -58,13 +51,13 @@ Guidelines:
 - Always validate results before proceeding
 - Ask for clarification if the task is unclear"""
     
-    def run_continuous_task(self, goal: str, max_iterations: int = 10, thread_id: str = "main") -> Dict[str, Any]:
+    def run_continuous_task(self, goal: str, thread_id: str = "main", **kwargs) -> Dict[str, Any]:
         """Run a task with fluid reasoning and tool execution
         
         Args:
             goal: The task/goal to accomplish
-            max_iterations: Maximum iterations (kept for compatibility, handled by agent internally)
             thread_id: Thread ID for conversation memory
+            **kwargs: Additional arguments for compatibility (e.g., max_iterations)
         
         Returns:
             Dictionary with messages and results
