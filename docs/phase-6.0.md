@@ -1,3 +1,7 @@
 # Phase 6.0
 
-Continuous Reasoning Loop.
+Added Continuous Reasoning Loop.
+
+## Next Steps
+
+Let's rewrite everything from ground up.

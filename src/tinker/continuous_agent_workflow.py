@@ -1,87 +1,76 @@
 """
 Continuous Agent Workflow for Tinker
-Implements the Think-Act-Observe-Decide loop
+Simplified implementation using LangGraph's create_react_agent
 """
 
-from typing import Optional
-from langgraph.graph import StateGraph, END
-from .continuous_agent_state import ContinuousAgentState
-from .continuous_agent_nodes import ContinuousAgentNodes
-from langchain_core.messages import HumanMessage, AIMessage
+from typing import Dict, Any
+from langgraph.prebuilt import create_react_agent
+from langgraph.checkpoint.memory import MemorySaver
+from .langchain_tools import AVAILABLE_TOOLS
+from .constants import ANTHROPIC_MODEL
 
 
 class ContinuousAgentWorkflow:
-    """Continuous reasoning loop workflow"""
+    """Simplified workflow using LangGraph's create_react_agent"""
     
-    def __init__(self):
-        self.nodes = ContinuousAgentNodes()
-        self.graph = self._build_graph()
+    def __init__(self, enable_memory: bool = True):
+        # Define available tools
+        self.tools = AVAILABLE_TOOLS
+        
+        # Setup memory if enabled
+        checkpointer = MemorySaver() if enable_memory else None
+        
+        # Create the agent using LangGraph prebuilt
+        self.agent = create_react_agent(
+            model=f"anthropic:{ANTHROPIC_MODEL}",
+            tools=self.tools,
+            checkpointer=checkpointer,
+            prompt=self._get_system_prompt()
+        )
     
-    def _build_graph(self):
-        """Build the continuous loop graph"""
-        workflow = StateGraph(ContinuousAgentState)
-        
-        # Add nodes
-        workflow.add_node("think", self.nodes.think_node)
-        workflow.add_node("act", self.nodes.act_node)
-        workflow.add_node("observe", self.nodes.observe_node)
-        workflow.add_node("decide", self.nodes.decide_node)
-        
-        # Define the loop flow
-        workflow.set_entry_point("think")
-        
-        # Linear flow through the loop
-        workflow.add_edge("think", "act")
-        workflow.add_edge("act", "observe")
-        workflow.add_edge("observe", "decide")
-        
-        # Conditional edge from decide
-        def should_continue(state: ContinuousAgentState) -> str:
-            """Decide whether to continue the loop or end"""
-            if state.get('should_continue', True):
-                return "think"  # Loop back
-            else:
-                return "end"
-        
-        workflow.add_conditional_edges(
-            "decide",
-            should_continue,
-            {
-                "think": "think",
-                "end": END
-            }
-        )
-        
-        return workflow.compile()
+    def _get_system_prompt(self) -> str:
+        """Get the system prompt for fluid reasoning"""
+        return """You are an AI assistant that can reason through problems and execute commands fluidly.
+
+When solving tasks:
+- Think through the problem step by step
+- Execute commands during your reasoning as needed  
+- Observe results and adapt your approach immediately
+- Continue until the task is complete or you determine it cannot be done
+
+Key capabilities:
+- Execute shell commands in a persistent Docker environment
+- Send email notifications
+- Work with files, git, package managers, and development tools
+- Handle errors gracefully and try alternative approaches
+
+Guidelines:
+- Be efficient but thorough
+- Explain your reasoning clearly
+- Execute multiple commands in sequence when logical
+- Always validate results before proceeding
+- Ask for clarification if the task is unclear"""
     
-    def run_continuous_task(self, goal: str, max_iterations: int = 10) -> ContinuousAgentState:
-        """Run a task with continuous reasoning loop"""
-        initial_state = ContinuousAgentState(
-            messages=[HumanMessage(content=goal)],
-            current_goal=goal,
-            iteration_count=1,
-            max_iterations=max_iterations,
-            working_memory={},
-            observations=[],
-            planned_actions=[],
-            last_action=None,
-            last_result=None,
-            should_continue=True,
-            exit_reason=None,
-            current_phase="think"
+    def run_continuous_task(self, goal: str, thread_id: str = "main", **kwargs) -> Dict[str, Any]:
+        """Run a task with fluid reasoning and tool execution
+        
+        Args:
+            goal: The task/goal to accomplish
+            thread_id: Thread ID for conversation memory
+            **kwargs: Additional arguments for compatibility (e.g., max_iterations)
+        
+        Returns:
+            Dictionary with messages and results
+        """
+        config = {"configurable": {"thread_id": thread_id}}
+        
+        result = self.agent.invoke(
+            {"messages": [{"role": "user", "content": goal}]},
+            config=config
         )
         
-        # Add initial message
-        initial_state['messages'].append(
-            AIMessage(content=f"Starting continuous reasoning loop for goal: {goal}")
-        )
-        
-        # Run the graph with increased recursion limit
-        final_state = self.graph.invoke(initial_state, config={"recursion_limit": 100})
-        
-        # Add summary
-        final_state['messages'].append(
-            AIMessage(content=f"Completed after {final_state['iteration_count']} iterations. Reason: {final_state.get('exit_reason', 'Unknown')}")
-        )
-        
-        return final_state
+        return result
+    
+    def run_task(self, goal: str, thread_id: str = "main") -> Dict[str, Any]:
+        """Alternative method name for compatibility"""
+        return self.run_continuous_task(goal, thread_id=thread_id)
