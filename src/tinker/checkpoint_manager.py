@@ -10,7 +10,6 @@ import uuid
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 from langgraph.checkpoint.sqlite import SqliteSaver
-from .langgraph_state import TinkerState
 
 
 class TinkerCheckpointManager:

@@ -8,16 +8,14 @@ from .constants import ANTHROPIC_MODEL
 
 def interactive_chat_mode():
     """Interactive chat mode similar to Claude Code"""
-    from .langgraph_workflow import TinkerWorkflow
     from .checkpoint_manager import TinkerCheckpointManager
     
     print("🤖 Tinker Interactive Mode - Type 'exit' or 'quit' to stop")
     print("💬 Chat naturally or give tasks directly")
     print(f"🧠 Model: {ANTHROPIC_MODEL}")
     
-    # Initialize LangGraph components
+    # Initialize checkpoint manager
     checkpoint_manager = TinkerCheckpointManager()
-    workflow = TinkerWorkflow(checkpoint_manager)
     
     # Check for existing conversation
     main_thread_id = checkpoint_manager.get_main_thread_id()
