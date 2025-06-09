@@ -510,3 +510,45 @@ Thoughts:
 
 This step is trivial, we mark `execution_status` to "completed" and `resumption_point` to "completed".
 
+## Action Items
+
+Based on the analysis above, here are the key improvements to implement:
+
+### Code Simplification
+- [ ] Remove single_task_mode and convert task argument to first user message
+- [ ] Remove unused TinkerWorkflow and TinkerState classes entirely
+- [ ] Merge observe_node functionality into act_node
+- [ ] Consider replacing 4-node state machine with single-node prompt-based approach
+- [ ] Remove unused tool_summary variable in tool_executor_node
+
+### Security & Reliability
+- [ ] Move system instructions from user messages to system messages
+- [ ] Increase max_tokens limit from 200 or add truncation detection
+- [ ] Add .aiignore file support for protecting sensitive code areas
+
+### Feature Enhancements
+- [ ] Add Python code execution support alongside shell commands
+- [ ] Implement LLM-powered observe node for intelligent output analysis
+- [ ] Add LLM reasoning to decide_node instead of mechanical iteration counting
+- [ ] Support multiple action types (shell, Python, API calls, file ops)
+- [ ] Add command examples to act_node prompt
+- [ ] Implement output pagination or file-based output handling for large results
+
+### Continuous Agent Improvements
+- [ ] Port missing environment details from TinkerLangGraphNodes to continuous version
+- [ ] Add result analysis step to continuous workflow
+- [ ] Hide iteration limits from agent to avoid artificial urgency
+- [ ] Implement sub-agent/sub-routine capability for complex tasks
+- [ ] Add npx/pipx usage guidelines to agent prompts
+
+### Command Execution
+- [ ] Structure commands with reasoning: `<reasoning>...</reasoning><command>...</command>`
+- [ ] Implement command alternatives and fallback mechanisms
+- [ ] Add expected output predictions for commands
+- [ ] Enable iterative re-planning based on command results
+
+### Checkpoint System
+- [ ] Either fully implement checkpoint resumption or remove the incomplete implementation
+- [ ] Clarify purpose and usage of session vs checkpoint concepts
+- [ ] Implement actual usage of resumption_point functionality
+
