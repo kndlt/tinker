@@ -10,7 +10,7 @@ Then, it branches into `single_task_mode` and `interactive_chat_mode`.
 
 Thoughts:
 - [ ] We can probably remove the `single_task_mode` for now. to reduce the duplication. When task argument is given, we can make it as a first user message.
-  - [ ] Agent Zero: Yes, this makes sense. Having two separate modes creates unnecessary code duplication. Converting the task argument into the first user message would simplify the codebase while maintaining the same functionality.
+  - [x] Agent Zero: Yes, this makes sense. Having two separate modes creates unnecessary code duplication. Converting the task argument into the first user message would simplify the codebase while maintaining the same functionality.
 
 In the `interactive_chat_mode`, we initialize `TinkerCheckpointManager` and then create a `TinkerWorkflow` using it.
 
@@ -38,11 +38,11 @@ The `user_response` is part of it is then displayed separately.
 
 Thoughts
 - [ ] Understand what ContinuousAgentWorkflow does.
-  - [ ] Agent Zero: ContinuousAgentWorkflow implements a continuous reasoning loop with 4 distinct phases (think, act, observe, decide) that cycles until goal completion or max iterations. It manages the state transitions and execution of each phase.
+  - [x] Agent Zero: ContinuousAgentWorkflow implements a continuous reasoning loop with 4 distinct phases (think, act, observe, decide) that cycles until goal completion or max iterations. It manages the state transitions and execution of each phase.
 - [ ] Understand what TinkerWorkflow does.
-  - [ ] Agent Zero: TinkerWorkflow appears to be a wrapper that manages conversation state and checkpointing. It initializes the checkpoint manager but doesn't seem to actively participate in the actual task execution logic.
+  - [x] Agent Zero: TinkerWorkflow appears to be a wrapper that manages conversation state and checkpointing. It initializes the checkpoint manager but doesn't seem to actively participate in the actual task execution logic.
 - [ ] TinkerWorkflow doesn't seem to do anything.
-  - [ ] Agent Zero: Correct observation. TinkerWorkflow seems to be mostly scaffolding for future functionality or legacy code. The actual work is delegated to ContinuousAgentWorkflow, making TinkerWorkflow potentially redundant.
+  - [x] Agent Zero: Correct observation. TinkerWorkflow seems to be mostly scaffolding for future functionality or legacy code. The actual work is delegated to ContinuousAgentWorkflow, making TinkerWorkflow potentially redundant.
 
 ## `ContinuousAgentWorkflow`
 
@@ -74,10 +74,11 @@ Thoughts:
   - [ ] Agent Zero: Based on the code, ContinuousAgentState likely contains: messages, current_goal, working_memory, observations, planned_actions, iteration_count, should_continue, exit_reason, current_phase, last_action, and last_result.
 - [ ] Do we really need all 4 nodes? Why don't we just embed this into the prompt without creating explicit states. It makes things less flexible, doesn't it?
   - [ ] Agent Zero: You're right. The explicit state machine adds complexity without clear benefits. A single node with prompt-based reasoning could be more flexible and easier to maintain. The current approach seems over-engineered for what could be achieved with a simpler architecture.
-- [ ] What is current_phase and why do we transition to "decide" when current phase is "decide"?
-  - [ ] Agent Zero: This seems like a bug or unclear logic. If current_phase is already "decide", transitioning to "decide" again doesn't make sense. The logic should probably check for a different condition or phase.
-- [ ] Act transitions to `observe`. Why?
-  - [ ] Agent Zero: The act node executes commands and needs to observe the results before deciding next steps. This follows a classic OODA loop pattern (Observe, Orient, Decide, Act), though the implementation seems unnecessarily rigid.
+- [x] What is current_phase and why do we transition to "decide" when current phase is "decide"?
+  - [x] Agent Zero: This seems like a bug or unclear logic. If current_phase is already "decide", transitioning to "decide" again doesn't make sense. The logic should probably check for a different condition or phase.
+    - [x] Sprited Dev: It looks like it is kinda duplicated state for sending current phase into LLM APIs. Also it is used in control flows.
+- [x] Act transitions to `observe`. Why?
+  - [x] Agent Zero: The act node executes commands and needs to observe the results before deciding next steps. This follows a classic OODA loop pattern (Observe, Orient, Decide, Act), though the implementation seems unnecessarily rigid.
 
 Then we review `run_continuous_task` function. It takes in `goal` and `max_iterations`. It creates `initial_state` using
 human message and `current_goal`. working+memory is initialized
@@ -245,3 +246,244 @@ Thoughts:
   - [ ] Agent Zero: The current system doesn't support true sub-routines. Adding hierarchical task delegation would be powerful - the main agent could spawn specialized sub-agents for specific tasks (e.g., debugging, research, implementation) and coordinate their results.
 - [ ] Shouldn't this node use LLM to decide what to do rather than control flow?
   - [ ] Agent Zero: Absolutely. The decide node should use LLM reasoning to determine next steps, evaluate progress, decide if the goal is met, or if the approach needs adjustment. Current implementation is just mechanical iteration counting.
+
+## `ContinuousAgentState`
+
+`ContinuousAgentState` is typed dictionary with following states.
+
+```
+messages
+current_goal
+iteration_count
+max_iterations
+
+working_memory
+observation
+planned_actions
+
+last_action
+last_result
+
+should_continue
+exit_reason
+
+current_phase
+
+user_response
+```
+
+That's it.
+
+## `TinkerWorkflow`
+
+It creates `TinkerLangGraphNodes`. 
+It also builds a graph.
+
+- `task_analyzer`
+- `tool_executor`
+- `completion`
+
+Thoughts:
+- [ ] This doesn't look like it is being used. Should we remove this as a whole?
+
+## `TinkerState`
+
+Contains 
+```
+task_content
+conversation_history
+tool_results
+planned_tools
+pending_ai_response
+remaining_output
+current_directory
+resumption_point
+thread_id
+tinker_checkpoint_id
+execution_status
+```
+
+Thoughts:
+- [ ] Similar question to `TinkerWorkflow`, I don't think this langgraph is actually invoked. Should we remove it?
+
+## `TinkerCheckpointManager`
+
+It uses `.tinker/memory.db`. Then connects to it.
+
+### `_init_custom_tables()`
+
+It initializes a table:
+```
+tinker_sessions
+    thread_id
+    created_at
+    last_accessed
+    task_summary
+    status
+tinker_checkpoints_meta
+    checkpoint_id
+    thread_id
+    created_at
+    resumption_point
+    execution_status
+    thread_id
+```
+
+Thoughts:
+- [ ] Are these being used in any meaningful manner?
+- [ ] What does session mean?
+- [ ] What does checkpoint mean?
+- [ ] What is the point of `update_session_access`?
+- [ ] What does `resumption_point` mean?
+- [ ] When do we use `list_sessions`?
+- [ ] Why `list_checkpoints_for_thread`?
+- [ ] When is `get_conversation_history` called?
+
+## `TinkerLangGraphNodes`
+
+### `task_analyzer_node`
+
+Receives task_content then appends `conversation_history`.
+
+It then calls Claude with following message.
+
+```
+You are Tinker, an autonomous AI engineering assistant designed to help with software development tasks. You work collaboratively with users to build, maintain, and improve software projects.
+
+Your core capabilities include:
+- Code development and bug fixing
+- System architecture and design
+- Testing and quality assurance
+- Documentation and technical writing
+- DevOpts and deployment tasks
+- Code review and optimization
+
+You operate within a persistent Docker container environment with full shell access via the execute_shell_command tool, providing you with:
+- Complete file system operations (...)
+- Package management and dependency installations
+- Git version control
+- Email and notification
+- Github CLI for repository management
+
+Guidelines for effective operation:
+- Always understand the task before acting - ask clarifying questions when needed
+- Break complex tasks into manageable steps and track progress.
+- use appropriate tools for each task - don't over-engineer simple solutions
+- Be safety-conscious with destructive operations
+- Maintain clean, readable code following project conventions
+- Document your work and reasoning clearly.
+
+Communication Style:
+- Be conversational and helpful like a skilled pair programming partner
+- Answer simple questions directly without unnecessary tool usage.
+- Explain your reasoning when making technical decisions
+- Ask for feedback and clarification when requirements are unclear
+
+Technical environment:
+- Working directory: /home/tinker (persistent across sessions)
+- Pre-configured development tools and CLI utilities
+- GitHub CLI available for repository operations
+- Standard package managers and build tools installed.
+```
+
+Thoughts:
+- [ ] The "continuous" version of nodes are missing some of these details like "working directory".
+- [ ] We should compare this file and the `continuous` version of the file and see if we are missing anything in continuous version.
+- [ ] Should we ask the agent to utilize `npx` and `pipx` for using packages that may or may not be installed?
+
+Once it receives the response.
+
+```
+Based on the user's request: "{task_content}"
+
+Determine if you need to use tools or can respond directly.
+
+Use tools when you need to:
+- Read, create, edit, or analyze files
+- Execute commands or run programs
+- Check system status or gather information
+- Perform git operations or interact with repositories
+- Send emails or notifications
+
+Respond directly (no tools) for:
+- Answering conceptual or theoretical questions
+- Providing explanations of existing code you can see
+- Discussing best practices or design patterns
+- General conversation or clarification requests
+
+Examples:
+- "What does this function do?" -> Direct response (if code is visible)
+- "Create a new Python file" -> COMMAND: touch new_file.py
+- "How do I implement OAuth" -> Direct response with explanation
+- "Run the tests" -> COMMAND: python -m pytest
+- "What's the difference between REST and GraphQL?" -> Direct response
+- "Check if the server is running" -> COMMAND: ps aux | grep server
+
+Choose the most efficient approach - prefer direct responses when possible, use tools when necessary.
+
+Respond with either:
+1. Just conversational text if no commands needed
+2. A list of specific shell commands I should run, one per line, prefixed with "COMMAND: "
+```
+
+Once response comes back it parses `COMMAND: ` lines then update `planned_tools` with `execute_shell_command`.
+
+At this point, the `resumption_point` is set to `task_analyzed`.
+
+### `tool_executer_node`
+
+This node looks at `planned_tools`, then calls `execute_tool`. Then stores the result into `tool_results`.
+
+It then creates `tool_summary` that summarize call calls.
+Then it creates `all_tool_output` which goes into the prompt:
+
+```
+User asked: {task_content}
+
+Command results:
+{all_tool_output}
+
+Analyze the tool execution results and provide a clear, contextual response to the user.
+
+Focus areas for analysis:
+- Success/failure status and any error conditions
+- Key information that addresses the user's request
+- Unexpected results that need explanation
+- Next steps or follow-up actions needed
+
+Response guidelines:
+- Summarize the most relevant findings first
+- Include specific details when they're important for understanding
+- Explain any errors in user-friendly terms.
+- Filter out routine/expected output unless specifically relevant
+- Suggest concrete next steps when appropriate.
+
+For different result types:
+- File operations: Convirm success and highlight important content
+- Command execution: Focus on meaningful output and any errors
+- Code execution: Focus on meaningful output and any errors.
+- System queries: Present information in organized, useful format.
+
+Keep responses concise but informative - users need actionable insights, not raw data dumps.
+```
+
+At this time, `execution_status` is "executing" and the `resumption_point` is "tools_executed".
+
+Once response comes back, we move over to next step.
+
+Thoughts:
+- [ ] How do we hint in the code base to instruct AI agent to never touch that or treat it as a black box.
+- [ ] tool_summary is not getting used anywhere. We should remove it.
+- [ ] It appears that we are just using `anthropic` library instead of using something that LangGraph provides. What is the right approach? Does LangGraph provide a different way to call into Anthropic APIs?
+- [ ] When we ask the agent to create shell commands, we can ask it to suggest multiple options and select the best one.
+- [ ] When we ask the agent to create shell commands, we can ask it to provide fallback command incase the command fails.
+- [ ] When we ask the agent to create shell commands, we can ask it what it expects to return.
+- [ ] Can we ask the agent to make it so that the output is not too long? Or somehow we only send top 100 lines then AI can do another tool call to get next 1000 lines or something?
+- [ ] Or, we can just store the result in a file and have the agent do grep on that file to see the result.
+- [ ] This result analysis step is missing in the `continuous` version. Is that fine?
+- [ ] Does this design have an issue where all commands are planned in one go and we don't have any way to re-think our direction in the middle when we notice an issue? We need a solution where it is iterative, and can just fluidly think of next steps.
+
+### `completion_node`
+
+This step is trivial, we mark `execution_status` to "completed" and `resumption_point` to "completed".
+
